@@ -19,7 +19,8 @@ export type Database = {
           client_id: string
           created_at: string
           id: string
-          iframe_url: string
+          iframe_url: string | null
+          metrics: Json
           source: Database["public"]["Enums"]["report_source"]
           updated_at: string
         }
@@ -27,7 +28,8 @@ export type Database = {
           client_id: string
           created_at?: string
           id?: string
-          iframe_url: string
+          iframe_url?: string | null
+          metrics?: Json
           source: Database["public"]["Enums"]["report_source"]
           updated_at?: string
         }
@@ -35,7 +37,8 @@ export type Database = {
           client_id?: string
           created_at?: string
           id?: string
-          iframe_url?: string
+          iframe_url?: string | null
+          metrics?: Json
           source?: Database["public"]["Enums"]["report_source"]
           updated_at?: string
         }

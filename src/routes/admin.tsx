@@ -382,7 +382,7 @@ function ManageReportsDialog({
         <DialogHeader>
           <DialogTitle>Relatórios — {client.full_name || client.company}</DialogTitle>
           <DialogDescription>
-            Cole os links de incorporação (Looker Studio) para cada fonte de tráfego.
+            Cole os links de incorporação (mLabs) para cada fonte de tráfego.
           </DialogDescription>
         </DialogHeader>
 

@@ -382,7 +382,7 @@ function ManageReportsDialog({
         <DialogHeader>
           <DialogTitle>Relatórios — {client.full_name || client.company}</DialogTitle>
           <DialogDescription>
-            Cole os links de incorporação (Looker Studio) para cada fonte de tráfego.
+            Cole os links de incorporação (mLabs) para cada fonte de tráfego.
           </DialogDescription>
         </DialogHeader>
 
@@ -405,7 +405,7 @@ function ManageReportsDialog({
                   </Label>
                   <Input
                     className="mt-2 font-mono text-xs"
-                    placeholder="https://lookerstudio.google.com/embed/..."
+                    placeholder="https://app.mlabs.com.br/..."
                     value={reports[s.key] ?? ""}
                     onChange={(e) =>
                       setReports((prev) => ({ ...prev, [s.key]: e.target.value }))

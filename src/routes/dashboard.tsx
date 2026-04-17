@@ -127,6 +127,7 @@ function DashboardPage() {
                 className="h-full w-full flex-1 border-0"
                 allowFullScreen
                 loading="lazy"
+                sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms"
               />
             ) : (
               <div className="m-auto max-w-sm px-6 text-center text-muted-foreground">

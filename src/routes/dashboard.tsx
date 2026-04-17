@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PortalHeader } from "@/components/PortalHeader";
 import { PortalSidebar } from "@/components/PortalSidebar";
 import { SOURCES, type ReportSource } from "@/lib/sources";
-import { ExternalLink, FileWarning, Loader2 } from "lucide-react";
+import { ExternalLink, FileWarning, Loader2, ShieldAlert } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -30,6 +30,8 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [iframeBlocked, setIframeBlocked] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -70,7 +72,19 @@ function DashboardPage() {
   // Re-mount iframe when changing source for smooth transition
   useEffect(() => {
     setIframeKey((k) => k + 1);
-  }, [active]);
+    setIframeLoaded(false);
+    setIframeBlocked(false);
+  }, [active, currentUrl]);
+
+  // Detect blocked iframes (X-Frame-Options / CSP). If iframe doesn't fire onLoad
+  // within 6s, assume it was blocked and show a friendly fallback.
+  useEffect(() => {
+    if (!currentUrl) return;
+    const t = setTimeout(() => {
+      if (!iframeLoaded) setIframeBlocked(true);
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [currentUrl, iframeKey, iframeLoaded]);
 
   if (authLoading || !user || role === "admin") {
     return (
@@ -121,14 +135,41 @@ function DashboardPage() {
                 <p className="text-sm">Carregando relatório…</p>
               </div>
             ) : currentUrl ? (
-              <iframe
-                src={currentUrl}
-                title={currentMeta.label}
-                className="h-full w-full flex-1 border-0"
-                allowFullScreen
-                loading="lazy"
-                sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms"
-              />
+              <>
+                <iframe
+                  src={currentUrl}
+                  title={currentMeta.label}
+                  className="h-full w-full flex-1 border-0"
+                  allowFullScreen
+                  loading="lazy"
+                  onLoad={() => setIframeLoaded(true)}
+                  sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms"
+                />
+                {iframeBlocked && !iframeLoaded && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/95 backdrop-blur-sm">
+                    <div className="max-w-md px-6 text-center">
+                      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-secondary">
+                        <ShieldAlert className="h-5 w-5 text-lilac" />
+                      </div>
+                      <p className="text-sm font-medium text-foreground">
+                        Relatório protegido contra incorporação
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        O mLabs bloqueou a exibição dentro do portal. Abra em uma nova aba para visualizar.
+                      </p>
+                      <a
+                        href={currentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-5 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-[0_10px_30px_-10px_oklch(0.42_0.22_305/0.7)] transition-transform hover:scale-[1.02]"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Abrir relatório em nova aba
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="m-auto max-w-sm px-6 text-center text-muted-foreground">
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-secondary">

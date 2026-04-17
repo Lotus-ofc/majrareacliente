@@ -40,7 +40,8 @@ interface ClientRow {
 
 interface ReportRow {
   source: ReportSource;
-  iframe_url: string;
+  iframe_url: string | null;
+  metrics: Record<string, string> | null;
 }
 
 function AdminPage() {
@@ -320,7 +321,8 @@ function ManageReportsDialog({
   client: ClientRow;
   onClose: () => void;
 }) {
-  const [reports, setReports] = useState<Record<string, string>>({});
+  const [urls, setUrls] = useState<Record<string, string>>({});
+  const [metrics, setMetrics] = useState<Record<string, Record<string, string>>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -329,12 +331,17 @@ function ManageReportsDialog({
     (async () => {
       const { data } = await supabase
         .from("client_reports")
-        .select("source, iframe_url")
+        .select("source, iframe_url, metrics")
         .eq("client_id", client.id);
       if (cancelled) return;
-      const map: Record<string, string> = {};
-      (data ?? []).forEach((r) => (map[r.source] = r.iframe_url));
-      setReports(map);
+      const urlMap: Record<string, string> = {};
+      const metricMap: Record<string, Record<string, string>> = {};
+      ((data ?? []) as unknown as ReportRow[]).forEach((r) => {
+        urlMap[r.source] = r.iframe_url ?? "";
+        metricMap[r.source] = (r.metrics ?? {}) as Record<string, string>;
+      });
+      setUrls(urlMap);
+      setMetrics(metricMap);
       setLoading(false);
     })();
     return () => {
@@ -342,19 +349,38 @@ function ManageReportsDialog({
     };
   }, [client.id]);
 
+  const setMetric = (source: string, key: string, value: string) => {
+    setMetrics((prev) => ({
+      ...prev,
+      [source]: { ...(prev[source] ?? {}), [key]: value },
+    }));
+  };
+
   const save = async () => {
     setSaving(true);
     try {
-      const rows = SOURCES.map((s) => ({
-        client_id: client.id,
-        source: s.key,
-        iframe_url: (reports[s.key] || "").trim(),
-      })).filter((r) => r.iframe_url.length > 0);
+      const rows = SOURCES.map((s) => {
+        const url = (urls[s.key] ?? "").trim();
+        const sourceMetrics = metrics[s.key] ?? {};
+        const cleanedMetrics: Record<string, string> = {};
+        Object.entries(sourceMetrics).forEach(([k, v]) => {
+          const trimmed = (v ?? "").toString().trim();
+          if (trimmed) cleanedMetrics[k] = trimmed;
+        });
+        return {
+          client_id: client.id,
+          source: s.key,
+          iframe_url: url,
+          metrics: cleanedMetrics,
+          hasContent: url.length > 0 || Object.keys(cleanedMetrics).length > 0,
+        };
+      });
 
-      // Delete sources that were cleared
-      const cleared = SOURCES.map((s) => s.key).filter(
-        (k) => !(reports[k] && reports[k].trim().length > 0),
-      );
+      const toUpsert = rows
+        .filter((r) => r.hasContent)
+        .map(({ hasContent: _h, ...rest }) => rest);
+      const cleared = rows.filter((r) => !r.hasContent).map((r) => r.source);
+
       if (cleared.length > 0) {
         await supabase
           .from("client_reports")
@@ -363,10 +389,10 @@ function ManageReportsDialog({
           .in("source", cleared);
       }
 
-      if (rows.length > 0) {
+      if (toUpsert.length > 0) {
         const { error } = await supabase
           .from("client_reports")
-          .upsert(rows, { onConflict: "client_id,source" });
+          .upsert(toUpsert, { onConflict: "client_id,source" });
         if (error) throw error;
       }
       toast.success("Relatórios atualizados");
@@ -380,11 +406,12 @@ function ManageReportsDialog({
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="glass-strong sm:max-w-2xl">
+      <DialogContent className="glass-strong max-h-[90vh] sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Relatórios — {client.full_name || client.company}</DialogTitle>
           <DialogDescription>
-            Cole os links de incorporação (mLabs) para cada fonte de tráfego.
+            Preencha as métricas de cada fonte e (opcional) o link do relatório
+            completo no mLabs.
           </DialogDescription>
         </DialogHeader>
 
@@ -393,30 +420,79 @@ function ManageReportsDialog({
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
-            {SOURCES.map((s) => {
-              const Icon = s.icon;
-              return (
-                <div
-                  key={s.key}
-                  className="rounded-lg border border-border bg-card/50 p-3"
-                >
-                  <Label className="flex items-center gap-2 text-xs">
-                    <Icon className="h-3.5 w-3.5 text-lilac" />
+          <Tabs defaultValue={SOURCES[0].key} className="w-full">
+            <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0">
+              {SOURCES.map((s) => {
+                const Icon = s.icon;
+                return (
+                  <TabsTrigger
+                    key={s.key}
+                    value={s.key}
+                    className="data-[state=active]:bg-primary/15 data-[state=active]:text-lilac"
+                  >
+                    <Icon className="mr-1.5 h-3.5 w-3.5" />
                     {s.label}
-                  </Label>
-                  <Input
-                    className="mt-2 font-mono text-xs"
-                    placeholder="https://app.mlabs.com.br/..."
-                    value={reports[s.key] ?? ""}
-                    onChange={(e) =>
-                      setReports((prev) => ({ ...prev, [s.key]: e.target.value }))
-                    }
-                  />
-                </div>
-              );
-            })}
-          </div>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+
+            <div className="mt-4 max-h-[55vh] overflow-y-auto pr-1">
+              {SOURCES.map((s) => {
+                const defs = METRICS_BY_SOURCE[s.key];
+                const sourceMetrics = metrics[s.key] ?? {};
+                return (
+                  <TabsContent key={s.key} value={s.key} className="mt-0 space-y-4">
+                    <div className="rounded-lg border border-border bg-card/50 p-3">
+                      <Label className="text-xs">URL do relatório completo (mLabs)</Label>
+                      <Input
+                        className="mt-2 font-mono text-xs"
+                        placeholder="https://mla.bs/..."
+                        value={urls[s.key] ?? ""}
+                        onChange={(e) =>
+                          setUrls((prev) => ({ ...prev, [s.key]: e.target.value }))
+                        }
+                      />
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">
+                        Aparecerá como botão "Abrir relatório completo" para o cliente.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {defs.map((m) => {
+                        const Icon = m.icon;
+                        return (
+                          <div
+                            key={m.key}
+                            className="rounded-lg border border-border bg-card/50 p-3"
+                          >
+                            <Label className="flex items-center gap-2 text-xs">
+                              <Icon className="h-3.5 w-3.5 text-lilac" />
+                              {m.label}
+                            </Label>
+                            <Input
+                              className="mt-2 text-sm"
+                              placeholder={
+                                m.format === "currency"
+                                  ? "ex: 12500,00"
+                                  : m.format === "percent"
+                                    ? "ex: 4,75"
+                                    : m.format === "number"
+                                      ? "ex: 1450"
+                                      : "ex: Instagram / Direct"
+                              }
+                              value={sourceMetrics[m.key] ?? ""}
+                              onChange={(e) => setMetric(s.key, m.key, e.target.value)}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </TabsContent>
+                );
+              })}
+            </div>
+          </Tabs>
         )}
 
         <DialogFooter>
@@ -428,7 +504,9 @@ function ManageReportsDialog({
             disabled={saving}
             className="bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)]"
           >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : (
+            {saving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
               <>
                 <Save className="mr-2 h-4 w-4" />
                 Salvar

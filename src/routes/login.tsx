@@ -1,0 +1,122 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState, type FormEvent } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { MajrLogo } from "@/components/MajrLogo";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { Loader2, Lock, Mail } from "lucide-react";
+
+export const Route = createFileRoute("/login")({
+  head: () => ({
+    meta: [
+      { title: "Entrar — Leandro MAJR" },
+      { name: "description", content: "Acesso restrito ao portal de clientes." },
+    ],
+  }),
+  component: LoginPage,
+});
+
+function LoginPage() {
+  const { signIn, user, role, loading } = useAuth();
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (loading || !user) return;
+    navigate({ to: role === "admin" ? "/admin" : "/dashboard" });
+  }, [user, role, loading, navigate]);
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    const { error } = await signIn(email.trim(), password);
+    setSubmitting(false);
+    if (error) {
+      toast.error("Acesso negado", { description: "Credenciais inválidas." });
+    } else {
+      toast.success("Bem-vindo!");
+    }
+  };
+
+  return (
+    <div className="relative flex min-h-screen items-center justify-center px-4 py-10">
+      {/* Decorative gradient orbs */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-32 top-10 h-80 w-80 rounded-full bg-primary/30 blur-[120px]" />
+        <div className="absolute -bottom-32 -right-20 h-96 w-96 rounded-full bg-lilac/20 blur-[140px]" />
+        <div className="absolute right-1/3 top-1/2 h-40 w-40 rounded-full bg-mint/10 blur-[100px]" />
+      </div>
+
+      <div className="relative w-full max-w-md fade-in">
+        <div className="mb-8 flex justify-center">
+          <MajrLogo size={56} />
+        </div>
+
+        <div className="glass-strong rounded-2xl p-7 sm:p-9">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            Acesse seu portal
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Use o e-mail e a senha enviados pela agência.
+          </p>
+
+          <form onSubmit={onSubmit} className="mt-7 space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-xs uppercase tracking-wider text-muted-foreground">
+                E-mail
+              </Label>
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="voce@empresa.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-11 bg-input/50 pl-9"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-xs uppercase tracking-wider text-muted-foreground">
+                Senha
+              </Label>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-11 bg-input/50 pl-9"
+                />
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="h-11 w-full bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] font-medium text-primary-foreground shadow-[0_10px_30px_-10px_oklch(0.42_0.22_305/0.7)] transition-all hover:opacity-95 hover:shadow-[0_18px_40px_-10px_oklch(0.42_0.22_305/0.85)]"
+            >
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Entrar no portal"}
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            Acesso restrito. Solicite suas credenciais ao seu gestor.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

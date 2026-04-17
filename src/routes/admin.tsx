@@ -405,7 +405,7 @@ function ManageReportsDialog({
                   </Label>
                   <Input
                     className="mt-2 font-mono text-xs"
-                    placeholder="https://lookerstudio.google.com/embed/..."
+                    placeholder="https://app.mlabs.com.br/..."
                     value={reports[s.key] ?? ""}
                     onChange={(e) =>
                       setReports((prev) => ({ ...prev, [s.key]: e.target.value }))

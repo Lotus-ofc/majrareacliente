@@ -4,8 +4,10 @@ import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { PortalHeader } from "@/components/PortalHeader";
 import { PortalSidebar } from "@/components/PortalSidebar";
+import { MetricCard } from "@/components/MetricCard";
 import { SOURCES, type ReportSource } from "@/lib/sources";
-import { ExternalLink, FileWarning, Loader2, ShieldAlert } from "lucide-react";
+import { METRICS_BY_SOURCE, formatMetricValue } from "@/lib/metrics";
+import { ExternalLink, FileWarning, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -19,7 +21,8 @@ export const Route = createFileRoute("/dashboard")({
 
 interface ReportRow {
   source: ReportSource;
-  iframe_url: string;
+  iframe_url: string | null;
+  metrics: Record<string, string> | null;
 }
 
 function DashboardPage() {
@@ -29,9 +32,6 @@ function DashboardPage() {
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [iframeKey, setIframeKey] = useState(0);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [iframeBlocked, setIframeBlocked] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -51,11 +51,11 @@ function DashboardPage() {
     setLoading(true);
     supabase
       .from("client_reports")
-      .select("source, iframe_url")
+      .select("source, iframe_url, metrics")
       .eq("client_id", user.id)
       .then(({ data }) => {
         if (cancelled) return;
-        setReports((data ?? []) as ReportRow[]);
+        setReports((data ?? []) as unknown as ReportRow[]);
         setLoading(false);
       });
     return () => {
@@ -63,28 +63,18 @@ function DashboardPage() {
     };
   }, [user]);
 
-  const currentUrl = useMemo(
-    () => reports.find((r) => r.source === active)?.iframe_url ?? null,
+  const current = useMemo(
+    () => reports.find((r) => r.source === active) ?? null,
     [reports, active],
   );
   const currentMeta = SOURCES.find((s) => s.key === active)!;
+  const metricDefs = METRICS_BY_SOURCE[active];
+  const metricValues = current?.metrics ?? {};
+  const fullReportUrl = current?.iframe_url?.trim() || null;
 
-  // Re-mount iframe when changing source for smooth transition
-  useEffect(() => {
-    setIframeKey((k) => k + 1);
-    setIframeLoaded(false);
-    setIframeBlocked(false);
-  }, [active, currentUrl]);
-
-  // Detect blocked iframes (X-Frame-Options / CSP). If iframe doesn't fire onLoad
-  // within 6s, assume it was blocked and show a friendly fallback.
-  useEffect(() => {
-    if (!currentUrl) return;
-    const t = setTimeout(() => {
-      if (!iframeLoaded) setIframeBlocked(true);
-    }, 6000);
-    return () => clearTimeout(t);
-  }, [currentUrl, iframeKey, iframeLoaded]);
+  const hasAnyMetric = metricDefs.some(
+    (m) => (metricValues[m.key] ?? "").toString().trim().length > 0,
+  );
 
   if (authLoading || !user || role === "admin") {
     return (
@@ -96,12 +86,17 @@ function DashboardPage() {
 
   return (
     <div className="flex min-h-screen">
-      <PortalSidebar active={active} onChange={setActive} open={open} onClose={() => setOpen(false)} />
+      <PortalSidebar
+        active={active}
+        onChange={setActive}
+        open={open}
+        onClose={() => setOpen(false)}
+      />
 
       <div className="flex min-h-screen flex-1 flex-col">
         <PortalHeader onMenuClick={() => setOpen(true)} showMenuButton />
 
-        <main className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+        <main className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3 fade-in">
             <div>
               <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
@@ -111,80 +106,53 @@ function DashboardPage() {
                 {currentMeta.label}
               </h1>
             </div>
-            {currentUrl && (
+            {fullReportUrl && (
               <a
-                href={currentUrl}
+                href={fullReportUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/60 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] px-4 py-2.5 text-xs font-medium text-primary-foreground shadow-[0_10px_30px_-10px_oklch(0.42_0.22_305/0.7)] transition-transform hover:scale-[1.02]"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                Abrir em nova aba
+                Abrir relatório completo
               </a>
             )}
           </div>
 
-          <div
-            key={iframeKey}
-            className="glass relative flex flex-1 overflow-hidden rounded-2xl fade-in"
-            style={{ minHeight: "calc(100vh - 12rem)" }}
-          >
-            {loading ? (
-              <div className="m-auto flex flex-col items-center gap-3 text-muted-foreground">
+          {loading ? (
+            <div className="glass flex flex-1 items-center justify-center rounded-2xl py-24">
+              <div className="flex flex-col items-center gap-3 text-muted-foreground">
                 <Loader2 className="h-6 w-6 animate-spin" />
-                <p className="text-sm">Carregando relatório…</p>
+                <p className="text-sm">Carregando métricas…</p>
               </div>
-            ) : currentUrl ? (
-              <>
-                <iframe
-                  src={currentUrl}
-                  title={currentMeta.label}
-                  className="h-full w-full flex-1 border-0"
-                  allowFullScreen
-                  loading="lazy"
-                  onLoad={() => setIframeLoaded(true)}
-                  sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms"
+            </div>
+          ) : hasAnyMetric ? (
+            <div className="grid grid-cols-1 gap-4 fade-in sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {metricDefs.map((m) => (
+                <MetricCard
+                  key={m.key}
+                  label={m.label}
+                  value={formatMetricValue(metricValues[m.key], m.format)}
+                  Icon={m.icon}
                 />
-                {iframeBlocked && !iframeLoaded && (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/95 backdrop-blur-sm">
-                    <div className="max-w-md px-6 text-center">
-                      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-secondary">
-                        <ShieldAlert className="h-5 w-5 text-lilac" />
-                      </div>
-                      <p className="text-sm font-medium text-foreground">
-                        Relatório protegido contra incorporação
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        O mLabs bloqueou a exibição dentro do portal. Abra em uma nova aba para visualizar.
-                      </p>
-                      <a
-                        href={currentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-5 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-[0_10px_30px_-10px_oklch(0.42_0.22_305/0.7)] transition-transform hover:scale-[1.02]"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                        Abrir relatório em nova aba
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="m-auto max-w-sm px-6 text-center text-muted-foreground">
+              ))}
+            </div>
+          ) : (
+            <div className="glass flex flex-1 items-center justify-center rounded-2xl py-24 fade-in">
+              <div className="max-w-sm px-6 text-center text-muted-foreground">
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-secondary">
                   <FileWarning className="h-5 w-5 text-lilac" />
                 </div>
                 <p className="text-sm font-medium text-foreground">
-                  Nenhum relatório configurado
+                  Nenhuma métrica disponível
                 </p>
                 <p className="mt-1 text-xs">
-                  Seu gestor ainda não vinculou um link para <b>{currentMeta.label}</b>. Fale com o
-                  suporte se isso for inesperado.
+                  Seu gestor ainda não preencheu os dados de <b>{currentMeta.label}</b>.
+                  Fale com o suporte se isso for inesperado.
                 </p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

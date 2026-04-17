@@ -18,6 +18,8 @@ import {
 import { toast } from "sonner";
 import { Copy, Loader2, Plus, Save, ShieldCheck, UserCog } from "lucide-react";
 import { SOURCES, type ReportSource } from "@/lib/sources";
+import { METRICS_BY_SOURCE } from "@/lib/metrics";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({

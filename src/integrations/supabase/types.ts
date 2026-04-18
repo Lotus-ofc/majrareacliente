@@ -44,6 +44,75 @@ export type Database = {
         }
         Relationships: []
       }
+      editorial_posts: {
+        Row: {
+          caption: string
+          client_id: string
+          created_at: string
+          id: string
+          image_url: string | null
+          scheduled_date: string
+          status: Database["public"]["Enums"]["post_status"]
+          updated_at: string
+        }
+        Insert: {
+          caption?: string
+          client_id: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          scheduled_date: string
+          status?: Database["public"]["Enums"]["post_status"]
+          updated_at?: string
+        }
+        Update: {
+          caption?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          scheduled_date?: string
+          status?: Database["public"]["Enums"]["post_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          amount_cents: number
+          client_id: string
+          created_at: string
+          due_date: string
+          id: string
+          pix_key: string | null
+          reference_month: string
+          status: Database["public"]["Enums"]["invoice_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount_cents?: number
+          client_id: string
+          created_at?: string
+          due_date: string
+          id?: string
+          pix_key?: string | null
+          reference_month: string
+          status?: Database["public"]["Enums"]["invoice_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          client_id?: string
+          created_at?: string
+          due_date?: string
+          id?: string
+          pix_key?: string | null
+          reference_month?: string
+          status?: Database["public"]["Enums"]["invoice_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           company: string | null
@@ -104,6 +173,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "client"
+      invoice_status: "pending" | "paid" | "overdue"
+      post_status: "pending" | "approved" | "published"
       report_source:
         | "overview"
         | "ga4"
@@ -240,6 +311,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "client"],
+      invoice_status: ["pending", "paid", "overdue"],
+      post_status: ["pending", "approved", "published"],
       report_source: [
         "overview",
         "ga4",

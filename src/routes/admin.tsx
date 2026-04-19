@@ -185,6 +185,22 @@ function AdminPage() {
           onClose={() => setSelected(null)}
         />
       )}
+
+      {postsClient && (
+        <ManagePostsDialog
+          clientId={postsClient.id}
+          clientName={postsClient.full_name || postsClient.company || "Cliente"}
+          onClose={() => setPostsClient(null)}
+        />
+      )}
+
+      {invoicesClient && (
+        <ManageInvoicesDialog
+          clientId={invoicesClient.id}
+          clientName={invoicesClient.full_name || invoicesClient.company || "Cliente"}
+          onClose={() => setInvoicesClient(null)}
+        />
+      )}
     </div>
   );
 }

@@ -16,10 +16,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Copy, Loader2, Plus, Save, ShieldCheck, UserCog } from "lucide-react";
+import { CalendarDays, Copy, Loader2, Plus, Save, ShieldCheck, UserCog, Wallet } from "lucide-react";
 import { SOURCES, type ReportSource } from "@/lib/sources";
 import { METRICS_BY_SOURCE } from "@/lib/metrics";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ManagePostsDialog } from "@/components/ManagePostsDialog";
+import { ManageInvoicesDialog } from "@/components/ManageInvoicesDialog";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({

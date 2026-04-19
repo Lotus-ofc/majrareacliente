@@ -160,7 +160,7 @@ function AdminPage() {
                       className="border-border bg-card/60 hover:bg-secondary"
                     >
                       <CalendarDays className="mr-2 h-4 w-4" />
-                      Calendário
+                      Posts
                     </Button>
                     <Button
                       variant="outline"

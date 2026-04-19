@@ -15,6 +15,10 @@ interface Post {
   status: "pending" | "approved" | "published";
 }
 
+function isVideoUrl(url: string) {
+  return /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(url);
+}
+
 const STATUS_META: Record<Post["status"], { label: string; cls: string }> = {
   pending: {
     label: "Pendente",
@@ -153,13 +157,23 @@ function PostCard({
     <article className="group overflow-hidden rounded-xl border border-border bg-card/70 transition-all hover:border-primary/40 hover:shadow-[0_0_24px_-8px_oklch(0.42_0.22_305/0.5)]">
       <div className="relative aspect-[4/5] w-full overflow-hidden bg-secondary/40">
         {post.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={post.image_url}
-            alt="Pré-visualização do post"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-            loading="lazy"
-          />
+          isVideoUrl(post.image_url) ? (
+            <video
+              src={post.image_url}
+              className="h-full w-full object-cover"
+              controls
+              playsInline
+              preload="metadata"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={post.image_url}
+              alt="Pré-visualização do post"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+              loading="lazy"
+            />
+          )
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted-foreground">
             <ImageOff className="h-8 w-8" />
@@ -177,7 +191,7 @@ function PostCard({
           <CalendarDays className="h-3 w-3" />
           {formatDateBR(post.scheduled_date)}
         </div>
-        <p className="line-clamp-4 text-xs leading-relaxed text-foreground/90">
+        <p className="line-clamp-6 whitespace-pre-wrap text-xs leading-relaxed text-foreground/90">
           {post.caption || (
             <span className="italic text-muted-foreground">Sem legenda</span>
           )}

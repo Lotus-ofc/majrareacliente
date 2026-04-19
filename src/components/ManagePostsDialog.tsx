@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -21,7 +21,17 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Pencil, X, Check } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Trash2,
+  Pencil,
+  X,
+  Check,
+  UploadCloud,
+  Film,
+  ImageIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateBR } from "@/lib/format";
 
@@ -62,6 +72,12 @@ const emptyForm: FormState = {
   status: "pending",
 };
 
+const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
+
+function isVideoUrl(url: string) {
+  return /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(url);
+}
+
 export function ManagePostsDialog({
   clientId,
   clientName,
@@ -76,6 +92,9 @@ export function ManagePostsDialog({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchPosts = async () => {
     setLoading(true);
@@ -108,13 +127,54 @@ export function ManagePostsDialog({
     setForm(emptyForm);
   };
 
+  const uploadFile = async (file: File) => {
+    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+      toast.error("Formato não suportado", {
+        description: "Envie uma imagem ou vídeo.",
+      });
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      toast.error("Arquivo muito grande", {
+        description: "Limite de 50 MB por arquivo.",
+      });
+      return;
+    }
+    setUploading(true);
+    const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+    const path = `${clientId}/${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage
+      .from("post-media")
+      .upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type,
+      });
+    if (error) {
+      setUploading(false);
+      toast.error("Falha ao enviar", { description: error.message });
+      return;
+    }
+    const { data } = supabase.storage.from("post-media").getPublicUrl(path);
+    setForm((f) => ({ ...f, image_url: data.publicUrl }));
+    setUploading(false);
+    toast.success("Mídia enviada");
+  };
+
+  const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) void uploadFile(file);
+  };
+
   const submit = async () => {
     setSubmitting(true);
     const payload = {
       client_id: clientId,
       scheduled_date: form.scheduled_date,
       image_url: form.image_url.trim() || null,
-      caption: form.caption.trim(),
+      caption: form.caption,
       status: form.status,
     };
     const { error } = editingId
@@ -141,11 +201,13 @@ export function ManagePostsDialog({
     void fetchPosts();
   };
 
+  const mediaIsVideo = form.image_url ? isVideoUrl(form.image_url) : false;
+
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="glass-strong max-h-[92vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Calendário Editorial — {clientName}</DialogTitle>
+          <DialogTitle>Aprovação de Posts — {clientName}</DialogTitle>
           <DialogDescription>
             Crie e edite os posts. O cliente poderá aprovar os pendentes.
           </DialogDescription>
@@ -163,6 +225,7 @@ export function ManagePostsDialog({
               </Button>
             )}
           </div>
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label className="text-xs">Data programada</Label>
@@ -194,32 +257,140 @@ export function ManagePostsDialog({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Drag & drop uploader */}
             <div className="space-y-2 sm:col-span-2">
-              <Label className="text-xs">URL da imagem (opcional)</Label>
+              <Label className="text-xs">Mídia (imagem ou vídeo)</Label>
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={onDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={cn(
+                  "group relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-all",
+                  dragOver
+                    ? "border-primary/70 bg-primary/10"
+                    : "border-border bg-background/40 hover:border-primary/40 hover:bg-secondary/40",
+                )}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void uploadFile(f);
+                    e.target.value = "";
+                  }}
+                />
+                {uploading ? (
+                  <>
+                    <Loader2 className="h-6 w-6 animate-spin text-lilac" />
+                    <p className="text-xs text-muted-foreground">Enviando…</p>
+                  </>
+                ) : form.image_url ? (
+                  <div className="flex w-full flex-col items-center gap-3">
+                    <div className="relative h-40 w-32 overflow-hidden rounded-lg border border-border bg-secondary/40">
+                      {mediaIsVideo ? (
+                        <video
+                          src={form.image_url}
+                          className="h-full w-full object-cover"
+                          muted
+                          playsInline
+                        />
+                      ) : (
+                        <img
+                          src={form.image_url}
+                          alt="preview"
+                          className="h-full w-full object-cover"
+                        />
+                      )}
+                      <span className="absolute left-1 top-1 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
+                        {mediaIsVideo ? (
+                          <Film className="h-3 w-3" />
+                        ) : (
+                          <ImageIcon className="h-3 w-3" />
+                        )}
+                        {mediaIsVideo ? "Vídeo" : "Imagem"}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          fileInputRef.current?.click();
+                        }}
+                      >
+                        Trocar
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setForm((f) => ({ ...f, image_url: "" }));
+                        }}
+                      >
+                        <Trash2 className="mr-1 h-3.5 w-3.5" /> Remover
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-lilac">
+                      <UploadCloud className="h-5 w-5" />
+                    </div>
+                    <p className="text-sm font-medium text-foreground">
+                      Arraste e solte aqui
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      ou clique para selecionar — imagem ou vídeo (até 50 MB)
+                    </p>
+                  </>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Você também pode colar uma URL externa abaixo se preferir.
+              </p>
               <Input
-                placeholder="https://..."
+                placeholder="https://…  (opcional)"
                 value={form.image_url}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, image_url: e.target.value }))
                 }
               />
             </div>
+
             <div className="space-y-2 sm:col-span-2">
               <Label className="text-xs">Legenda</Label>
               <Textarea
-                rows={4}
+                rows={6}
                 value={form.caption}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, caption: e.target.value }))
                 }
-                placeholder="Texto que será publicado…"
+                placeholder="Texto que será publicado…&#10;&#10;As quebras de linha são preservadas."
+                className="whitespace-pre-wrap"
               />
+              <p className="text-[11px] text-muted-foreground">
+                Use Enter para criar quebras de linha — elas aparecerão exatamente assim para o cliente.
+              </p>
             </div>
           </div>
+
           <div className="mt-3 flex justify-end">
             <Button
               onClick={submit}
-              disabled={submitting || !form.scheduled_date}
+              disabled={submitting || uploading || !form.scheduled_date}
               className="bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)]"
             >
               {submitting ? (
@@ -250,57 +421,69 @@ export function ManagePostsDialog({
             </p>
           ) : (
             <ul className="space-y-2">
-              {posts.map((p) => (
-                <li
-                  key={p.id}
-                  className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border bg-card/50 p-3"
-                >
-                  <div className="flex min-w-0 flex-1 gap-3">
-                    {p.image_url ? (
-                      <img
-                        src={p.image_url}
-                        alt=""
-                        className="h-14 w-14 flex-shrink-0 rounded-md object-cover"
-                      />
-                    ) : (
-                      <div className="h-14 w-14 flex-shrink-0 rounded-md bg-secondary" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {formatDateBR(p.scheduled_date)}
-                        </span>
-                        <Badge
-                          className={cn(
-                            "rounded-full border px-2 py-0 text-[10px]",
-                            STATUS_CLS[p.status],
+              {posts.map((p) => {
+                const isVid = p.image_url ? isVideoUrl(p.image_url) : false;
+                return (
+                  <li
+                    key={p.id}
+                    className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border bg-card/50 p-3"
+                  >
+                    <div className="flex min-w-0 flex-1 gap-3">
+                      {p.image_url ? (
+                        isVid ? (
+                          <video
+                            src={p.image_url}
+                            className="h-14 w-14 flex-shrink-0 rounded-md object-cover"
+                            muted
+                            playsInline
+                          />
+                        ) : (
+                          <img
+                            src={p.image_url}
+                            alt=""
+                            className="h-14 w-14 flex-shrink-0 rounded-md object-cover"
+                          />
+                        )
+                      ) : (
+                        <div className="h-14 w-14 flex-shrink-0 rounded-md bg-secondary" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            {formatDateBR(p.scheduled_date)}
+                          </span>
+                          <Badge
+                            className={cn(
+                              "rounded-full border px-2 py-0 text-[10px]",
+                              STATUS_CLS[p.status],
+                            )}
+                          >
+                            {STATUS_OPTIONS.find((s) => s.value === p.status)?.label}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-foreground/90">
+                          {p.caption || (
+                            <span className="italic text-muted-foreground">Sem legenda</span>
                           )}
-                        >
-                          {STATUS_OPTIONS.find((s) => s.value === p.status)?.label}
-                        </Badge>
+                        </p>
                       </div>
-                      <p className="mt-1 line-clamp-2 text-xs text-foreground/90">
-                        {p.caption || (
-                          <span className="italic text-muted-foreground">Sem legenda</span>
-                        )}
-                      </p>
                     </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => startEdit(p)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => remove(p.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </li>
-              ))}
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => startEdit(p)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => remove(p.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

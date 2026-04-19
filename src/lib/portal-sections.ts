@@ -10,6 +10,6 @@ export interface PortalSectionMeta {
 
 export const PORTAL_SECTIONS: PortalSectionMeta[] = [
   { key: "reports", label: "Relatórios", icon: BarChart3 },
-  { key: "calendar", label: "Calendário Editorial", icon: CalendarDays },
+  { key: "calendar", label: "Aprovação de Posts", icon: CalendarDays },
   { key: "finance", label: "Financeiro", icon: Wallet },
 ];

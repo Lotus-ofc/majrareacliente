@@ -143,15 +143,35 @@ function AdminPage() {
                       {c.company || "—"}
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelected(c)}
-                    className="border-primary/40 bg-primary/10 text-lilac hover:bg-primary/15"
-                  >
-                    <UserCog className="mr-2 h-4 w-4" />
-                    Gerenciar relatórios
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelected(c)}
+                      className="border-primary/40 bg-primary/10 text-lilac hover:bg-primary/15"
+                    >
+                      <UserCog className="mr-2 h-4 w-4" />
+                      Relatórios
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPostsClient(c)}
+                      className="border-border bg-card/60 hover:bg-secondary"
+                    >
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      Calendário
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setInvoicesClient(c)}
+                      className="border-border bg-card/60 hover:bg-secondary"
+                    >
+                      <Wallet className="mr-2 h-4 w-4" />
+                      Financeiro
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>

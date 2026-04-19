@@ -16,10 +16,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Copy, Loader2, Plus, Save, ShieldCheck, UserCog } from "lucide-react";
+import { CalendarDays, Copy, Loader2, Plus, Save, ShieldCheck, UserCog, Wallet } from "lucide-react";
 import { SOURCES, type ReportSource } from "@/lib/sources";
 import { METRICS_BY_SOURCE } from "@/lib/metrics";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ManagePostsDialog } from "@/components/ManagePostsDialog";
+import { ManageInvoicesDialog } from "@/components/ManageInvoicesDialog";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -50,6 +52,8 @@ function AdminPage() {
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [selected, setSelected] = useState<ClientRow | null>(null);
+  const [postsClient, setPostsClient] = useState<ClientRow | null>(null);
+  const [invoicesClient, setInvoicesClient] = useState<ClientRow | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -139,15 +143,35 @@ function AdminPage() {
                       {c.company || "—"}
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelected(c)}
-                    className="border-primary/40 bg-primary/10 text-lilac hover:bg-primary/15"
-                  >
-                    <UserCog className="mr-2 h-4 w-4" />
-                    Gerenciar relatórios
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelected(c)}
+                      className="border-primary/40 bg-primary/10 text-lilac hover:bg-primary/15"
+                    >
+                      <UserCog className="mr-2 h-4 w-4" />
+                      Relatórios
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPostsClient(c)}
+                      className="border-border bg-card/60 hover:bg-secondary"
+                    >
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      Calendário
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setInvoicesClient(c)}
+                      className="border-border bg-card/60 hover:bg-secondary"
+                    >
+                      <Wallet className="mr-2 h-4 w-4" />
+                      Financeiro
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -159,6 +183,22 @@ function AdminPage() {
         <ManageReportsDialog
           client={selected}
           onClose={() => setSelected(null)}
+        />
+      )}
+
+      {postsClient && (
+        <ManagePostsDialog
+          clientId={postsClient.id}
+          clientName={postsClient.full_name || postsClient.company || "Cliente"}
+          onClose={() => setPostsClient(null)}
+        />
+      )}
+
+      {invoicesClient && (
+        <ManageInvoicesDialog
+          clientId={invoicesClient.id}
+          clientName={invoicesClient.full_name || invoicesClient.company || "Cliente"}
+          onClose={() => setInvoicesClient(null)}
         />
       )}
     </div>

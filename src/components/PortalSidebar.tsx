@@ -1,16 +1,26 @@
 import { SOURCES, type ReportSource } from "@/lib/sources";
+import { PORTAL_SECTIONS, type PortalSection } from "@/lib/portal-sections";
 import { cn } from "@/lib/utils";
 import { MajrLogo } from "@/components/MajrLogo";
 import { X } from "lucide-react";
 
 interface Props {
+  section: PortalSection;
+  onSectionChange: (s: PortalSection) => void;
   active: ReportSource;
   onChange: (s: ReportSource) => void;
   open: boolean;
   onClose: () => void;
 }
 
-export function PortalSidebar({ active, onChange, open, onClose }: Props) {
+export function PortalSidebar({
+  section,
+  onSectionChange,
+  active,
+  onChange,
+  open,
+  onClose,
+}: Props) {
   return (
     <>
       {/* Mobile overlay */}
@@ -40,21 +50,21 @@ export function PortalSidebar({ active, onChange, open, onClose }: Props) {
           </button>
         </div>
 
+        {/* Portal sections */}
         <div className="px-4 pb-2 pt-5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Fontes de tráfego
+            Portal
           </p>
         </div>
-
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-6">
-          {SOURCES.map((s) => {
+        <nav className="space-y-1 px-3">
+          {PORTAL_SECTIONS.map((s) => {
             const Icon = s.icon;
-            const isActive = active === s.key;
+            const isActive = section === s.key;
             return (
               <button
                 key={s.key}
                 onClick={() => {
-                  onChange(s.key);
+                  onSectionChange(s.key);
                   onClose();
                 }}
                 className={cn(
@@ -80,12 +90,58 @@ export function PortalSidebar({ active, onChange, open, onClose }: Props) {
           })}
         </nav>
 
+        {/* Reports sub-nav, only when on Relatórios */}
+        {section === "reports" && (
+          <>
+            <div className="px-4 pb-2 pt-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Fontes de tráfego
+              </p>
+            </div>
+            <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-6">
+              {SOURCES.map((s) => {
+                const Icon = s.icon;
+                const isActive = active === s.key;
+                return (
+                  <button
+                    key={s.key}
+                    onClick={() => {
+                      onChange(s.key);
+                      onClose();
+                    }}
+                    className={cn(
+                      "group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
+                      isActive
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-primary/40 shadow-[0_0_24px_-6px_oklch(0.42_0.22_305/0.6)]"
+                        : "text-sidebar-foreground/75 hover:bg-secondary/60 hover:text-foreground",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-md border transition-colors",
+                        isActive
+                          ? "border-primary/50 bg-primary/15 text-lilac"
+                          : "border-border bg-card/60 text-muted-foreground group-hover:text-foreground",
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    {s.label}
+                  </button>
+                );
+              })}
+            </nav>
+          </>
+        )}
+
+        {section !== "reports" && <div className="flex-1" />}
+
         <div className="border-t border-sidebar-border p-4">
           <div className="rounded-xl border border-border bg-card/60 p-3">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Status</p>
             <p className="mt-1 flex items-center gap-2 text-xs text-foreground">
               <span className="inline-block h-2 w-2 rounded-full bg-mint shadow-[0_0_12px_oklch(0.96_0.06_175/0.8)]" />
-              Relatórios sincronizados
+              Portal sincronizado
             </p>
           </div>
         </div>

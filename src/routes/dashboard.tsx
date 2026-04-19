@@ -5,15 +5,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { PortalHeader } from "@/components/PortalHeader";
 import { PortalSidebar } from "@/components/PortalSidebar";
 import { MetricCard } from "@/components/MetricCard";
+import { ClientCalendarView } from "@/components/ClientCalendarView";
+import { ClientFinanceView } from "@/components/ClientFinanceView";
 import { SOURCES, type ReportSource } from "@/lib/sources";
 import { METRICS_BY_SOURCE, formatMetricValue } from "@/lib/metrics";
+import { PORTAL_SECTIONS, type PortalSection } from "@/lib/portal-sections";
 import { ExternalLink, FileWarning, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
       { title: "Dashboard — Leandro MAJR" },
-      { name: "description", content: "Seus relatórios de performance em tempo real." },
+      { name: "description", content: "Seu portal de relatórios, calendário e financeiro." },
     ],
   }),
   component: DashboardPage,
@@ -28,6 +31,7 @@ interface ReportRow {
 function DashboardPage() {
   const { user, role, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [section, setSection] = useState<PortalSection>("reports");
   const [active, setActive] = useState<ReportSource>("overview");
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,6 +72,7 @@ function DashboardPage() {
     [reports, active],
   );
   const currentMeta = SOURCES.find((s) => s.key === active)!;
+  const sectionMeta = PORTAL_SECTIONS.find((s) => s.key === section)!;
   const metricDefs = METRICS_BY_SOURCE[active];
   const metricValues = current?.metrics ?? {};
   const fullReportUrl = current?.iframe_url?.trim() || null;
@@ -87,6 +92,8 @@ function DashboardPage() {
   return (
     <div className="flex min-h-screen">
       <PortalSidebar
+        section={section}
+        onSectionChange={setSection}
         active={active}
         onChange={setActive}
         open={open}
@@ -100,13 +107,13 @@ function DashboardPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 fade-in">
             <div>
               <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                Relatório
+                {section === "reports" ? "Relatório" : sectionMeta.label}
               </p>
               <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                {currentMeta.label}
+                {section === "reports" ? currentMeta.label : sectionMeta.label}
               </h1>
             </div>
-            {fullReportUrl && (
+            {section === "reports" && fullReportUrl && (
               <a
                 href={fullReportUrl}
                 target="_blank"
@@ -119,40 +126,44 @@ function DashboardPage() {
             )}
           </div>
 
-          {loading ? (
-            <div className="glass flex flex-1 items-center justify-center rounded-2xl py-24">
-              <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                <Loader2 className="h-6 w-6 animate-spin" />
-                <p className="text-sm">Carregando métricas…</p>
-              </div>
-            </div>
-          ) : hasAnyMetric ? (
-            <div className="grid grid-cols-1 gap-4 fade-in sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {metricDefs.map((m) => (
-                <MetricCard
-                  key={m.key}
-                  label={m.label}
-                  value={formatMetricValue(metricValues[m.key], m.format)}
-                  Icon={m.icon}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="glass flex flex-1 items-center justify-center rounded-2xl py-24 fade-in">
-              <div className="max-w-sm px-6 text-center text-muted-foreground">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-secondary">
-                  <FileWarning className="h-5 w-5 text-lilac" />
+          {section === "reports" &&
+            (loading ? (
+              <div className="glass flex flex-1 items-center justify-center rounded-2xl py-24">
+                <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <p className="text-sm">Carregando métricas…</p>
                 </div>
-                <p className="text-sm font-medium text-foreground">
-                  Nenhuma métrica disponível
-                </p>
-                <p className="mt-1 text-xs">
-                  Seu gestor ainda não preencheu os dados de <b>{currentMeta.label}</b>.
-                  Fale com o suporte se isso for inesperado.
-                </p>
               </div>
-            </div>
-          )}
+            ) : hasAnyMetric ? (
+              <div className="grid grid-cols-1 gap-4 fade-in sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {metricDefs.map((m) => (
+                  <MetricCard
+                    key={m.key}
+                    label={m.label}
+                    value={formatMetricValue(metricValues[m.key], m.format)}
+                    Icon={m.icon}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="glass flex flex-1 items-center justify-center rounded-2xl py-24 fade-in">
+                <div className="max-w-sm px-6 text-center text-muted-foreground">
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-secondary">
+                    <FileWarning className="h-5 w-5 text-lilac" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">
+                    Nenhuma métrica disponível
+                  </p>
+                  <p className="mt-1 text-xs">
+                    Seu gestor ainda não preencheu os dados de <b>{currentMeta.label}</b>.
+                    Fale com o suporte se isso for inesperado.
+                  </p>
+                </div>
+              </div>
+            ))}
+
+          {section === "calendar" && <ClientCalendarView clientId={user.id} />}
+          {section === "finance" && <ClientFinanceView clientId={user.id} />}
         </main>
       </div>
     </div>

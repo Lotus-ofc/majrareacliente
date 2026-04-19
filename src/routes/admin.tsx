@@ -52,6 +52,8 @@ function AdminPage() {
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [selected, setSelected] = useState<ClientRow | null>(null);
+  const [postsClient, setPostsClient] = useState<ClientRow | null>(null);
+  const [invoicesClient, setInvoicesClient] = useState<ClientRow | null>(null);
 
   useEffect(() => {
     if (loading) return;

@@ -15,6 +15,10 @@ interface Post {
   status: "pending" | "approved" | "published";
 }
 
+function isVideoUrl(url: string) {
+  return /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(url);
+}
+
 const STATUS_META: Record<Post["status"], { label: string; cls: string }> = {
   pending: {
     label: "Pendente",

@@ -2,3 +2,6 @@ project_id = "qednvazhwsbixdtswqeg"
 
 [functions.admin-create-client]
 verify_jwt = false
+
+[functions.parse-report-pdf]
+verify_jwt = false

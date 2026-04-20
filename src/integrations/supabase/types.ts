@@ -21,6 +21,7 @@ export type Database = {
           id: string
           iframe_url: string | null
           metrics: Json
+          pdf_path: string | null
           source: Database["public"]["Enums"]["report_source"]
           updated_at: string
         }
@@ -30,6 +31,7 @@ export type Database = {
           id?: string
           iframe_url?: string | null
           metrics?: Json
+          pdf_path?: string | null
           source: Database["public"]["Enums"]["report_source"]
           updated_at?: string
         }
@@ -39,6 +41,7 @@ export type Database = {
           id?: string
           iframe_url?: string | null
           metrics?: Json
+          pdf_path?: string | null
           source?: Database["public"]["Enums"]["report_source"]
           updated_at?: string
         }

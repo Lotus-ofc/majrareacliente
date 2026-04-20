@@ -16,7 +16,20 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { CalendarDays, Copy, Loader2, Plus, Save, ShieldCheck, UserCog, Wallet } from "lucide-react";
+import {
+  CalendarDays,
+  Copy,
+  FileText,
+  Loader2,
+  Plus,
+  Save,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  Upload,
+  UserCog,
+  Wallet,
+} from "lucide-react";
 import { SOURCES, type ReportSource } from "@/lib/sources";
 import { METRICS_BY_SOURCE } from "@/lib/metrics";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -44,6 +57,7 @@ interface ReportRow {
   source: ReportSource;
   iframe_url: string | null;
   metrics: Record<string, string> | null;
+  pdf_path: string | null;
 }
 
 function AdminPage() {
@@ -363,6 +377,8 @@ function ManageReportsDialog({
 }) {
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [metrics, setMetrics] = useState<Record<string, Record<string, string>>>({});
+  const [pdfPaths, setPdfPaths] = useState<Record<string, string | null>>({});
+  const [parsingSource, setParsingSource] = useState<ReportSource | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -371,17 +387,20 @@ function ManageReportsDialog({
     (async () => {
       const { data } = await supabase
         .from("client_reports")
-        .select("source, iframe_url, metrics")
+        .select("source, iframe_url, metrics, pdf_path")
         .eq("client_id", client.id);
       if (cancelled) return;
       const urlMap: Record<string, string> = {};
       const metricMap: Record<string, Record<string, string>> = {};
+      const pdfMap: Record<string, string | null> = {};
       ((data ?? []) as unknown as ReportRow[]).forEach((r) => {
         urlMap[r.source] = r.iframe_url ?? "";
         metricMap[r.source] = (r.metrics ?? {}) as Record<string, string>;
+        pdfMap[r.source] = r.pdf_path ?? null;
       });
       setUrls(urlMap);
       setMetrics(metricMap);
+      setPdfPaths(pdfMap);
       setLoading(false);
     })();
     return () => {
@@ -394,6 +413,64 @@ function ManageReportsDialog({
       ...prev,
       [source]: { ...(prev[source] ?? {}), [key]: value },
     }));
+  };
+
+  const handlePdfUpload = async (source: ReportSource, file: File) => {
+    if (file.type !== "application/pdf") {
+      toast.error("Envie um arquivo PDF");
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("PDF muito grande (máx 25MB)");
+      return;
+    }
+    setParsingSource(source);
+    const path = `${client.id}/${source}.pdf`;
+    try {
+      const { error: upErr } = await supabase.storage
+        .from("report-pdfs")
+        .upload(path, file, { upsert: true, contentType: "application/pdf" });
+      if (upErr) throw upErr;
+
+      toast.info("PDF enviado. Lendo com IA…", { duration: 3000 });
+
+      const { data, error } = await supabase.functions.invoke("parse-report-pdf", {
+        body: { client_id: client.id, source, pdf_path: path },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const extracted = (data?.metrics ?? {}) as Record<string, string>;
+      setMetrics((prev) => ({
+        ...prev,
+        [source]: { ...(prev[source] ?? {}), ...extracted },
+      }));
+      setPdfPaths((prev) => ({ ...prev, [source]: path }));
+      toast.success(
+        `IA extraiu ${data?.count ?? Object.keys(extracted).length} métrica(s). Revise e salve.`,
+      );
+    } catch (e) {
+      toast.error("Falha ao processar PDF", { description: (e as Error).message });
+    } finally {
+      setParsingSource(null);
+    }
+  };
+
+  const removePdf = async (source: ReportSource) => {
+    const path = pdfPaths[source];
+    if (!path) return;
+    try {
+      await supabase.storage.from("report-pdfs").remove([path]);
+      await supabase
+        .from("client_reports")
+        .update({ pdf_path: null })
+        .eq("client_id", client.id)
+        .eq("source", source);
+      setPdfPaths((prev) => ({ ...prev, [source]: null }));
+      toast.success("PDF removido");
+    } catch (e) {
+      toast.error("Erro ao remover PDF", { description: (e as Error).message });
+    }
   };
 
   const save = async () => {
@@ -412,7 +489,11 @@ function ManageReportsDialog({
           source: s.key,
           iframe_url: url,
           metrics: cleanedMetrics,
-          hasContent: url.length > 0 || Object.keys(cleanedMetrics).length > 0,
+          pdf_path: pdfPaths[s.key] ?? null,
+          hasContent:
+            url.length > 0 ||
+            Object.keys(cleanedMetrics).length > 0 ||
+            !!pdfPaths[s.key],
         };
       });
 
@@ -483,6 +564,14 @@ function ManageReportsDialog({
                 const sourceMetrics = metrics[s.key] ?? {};
                 return (
                   <TabsContent key={s.key} value={s.key} className="mt-0 space-y-4">
+                    <PdfImportBlock
+                      source={s.key}
+                      pdfPath={pdfPaths[s.key] ?? null}
+                      parsing={parsingSource === s.key}
+                      onUpload={(file) => handlePdfUpload(s.key, file)}
+                      onRemove={() => removePdf(s.key)}
+                    />
+
                     <div className="rounded-lg border border-border bg-card/50 p-3">
                       <Label className="text-xs">URL do relatório completo (mLabs)</Label>
                       <Input
@@ -556,5 +645,108 @@ function ManageReportsDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function PdfImportBlock({
+  source,
+  pdfPath,
+  parsing,
+  onUpload,
+  onRemove,
+}: {
+  source: ReportSource;
+  pdfPath: string | null;
+  parsing: boolean;
+  onUpload: (file: File) => void;
+  onRemove: () => void;
+}) {
+  const [dragOver, setDragOver] = useState(false);
+  const inputId = `pdf-input-${source}`;
+
+  const onDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) onUpload(file);
+  };
+
+  return (
+    <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <Label className="flex items-center gap-2 text-xs">
+          <Sparkles className="h-3.5 w-3.5 text-lilac" />
+          Preencher métricas com IA (PDF do mLabs)
+        </Label>
+        {pdfPath && !parsing && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onRemove}
+            className="h-7 px-2 text-[11px] text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="mr-1 h-3 w-3" />
+            Remover
+          </Button>
+        )}
+      </div>
+
+      <label
+        htmlFor={inputId}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-4 text-center transition-colors ${
+          dragOver
+            ? "border-primary bg-primary/10"
+            : pdfPath
+              ? "border-mint/40 bg-mint/5"
+              : "border-border bg-background/40 hover:border-primary/50 hover:bg-primary/5"
+        }`}
+      >
+        {parsing ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin text-lilac" />
+            <p className="text-xs text-muted-foreground">
+              Lendo PDF e extraindo métricas com IA…
+            </p>
+          </>
+        ) : pdfPath ? (
+          <>
+            <FileText className="h-5 w-5 text-mint" />
+            <p className="text-xs font-medium text-foreground">PDF importado ✓</p>
+            <p className="text-[11px] text-muted-foreground">
+              Clique ou arraste outro PDF para reprocessar
+            </p>
+          </>
+        ) : (
+          <>
+            <Upload className="h-5 w-5 text-lilac" />
+            <p className="text-xs font-medium text-foreground">
+              Arraste o PDF aqui ou clique para enviar
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              A IA vai ler e preencher os campos abaixo automaticamente (máx 25MB)
+            </p>
+          </>
+        )}
+        <input
+          id={inputId}
+          type="file"
+          accept="application/pdf"
+          className="hidden"
+          disabled={parsing}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onUpload(file);
+            e.target.value = "";
+          }}
+        />
+      </label>
+    </div>
   );
 }

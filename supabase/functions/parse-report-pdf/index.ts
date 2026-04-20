@@ -56,10 +56,33 @@ const METRICS: Record<
     { key: "cpc", label: "Custo por Clique (CPC)", format: "currency" },
   ],
   instagram_organic: [
-    { key: "reach", label: "Contas Alcançadas", format: "number" },
-    { key: "engaged", label: "Contas Engajadas", format: "number" },
-    { key: "new_followers", label: "Novos Seguidores", format: "number" },
-    { key: "profile_visits", label: "Visitas ao Perfil", format: "number" },
+    // Resumo geral do perfil
+    { key: "reach", label: "Alcance (contas alcançadas no período)", format: "number" },
+    { key: "engagement", label: "Engajamento (total absoluto, não percentual)", format: "number" },
+    { key: "engagement_rate", label: "Taxa de Engajamento (em %)", format: "percent" },
+    { key: "frequency", label: "Frequência (média de vezes que o conteúdo apareceu por usuário)", format: "number" },
+    { key: "views", label: "Visualizações totais do perfil/conteúdo", format: "number" },
+    { key: "interactions", label: "Interações totais", format: "number" },
+    // Detalhamento de interações
+    { key: "likes", label: "Curtidas (total)", format: "number" },
+    { key: "comments", label: "Comentários (total)", format: "number" },
+    { key: "shares", label: "Compartilhamentos (total)", format: "number" },
+    { key: "saves", label: "Salvos (total)", format: "number" },
+    { key: "profile_link_clicks", label: "Cliques em links do perfil", format: "number" },
+    // Seguidores
+    { key: "followers_total", label: "Total atual de seguidores no fim do período", format: "number" },
+    { key: "new_followers", label: "Novos Seguidores no período (Follow / crescimento absoluto)", format: "number" },
+    { key: "growth_rate", label: "Taxa de Crescimento de seguidores (em %)", format: "percent" },
+    // Reels
+    { key: "reels_total", label: "Total de Reels publicados no período", format: "number" },
+    { key: "reels_views_total", label: "Visualizações totais somando todos os Reels", format: "number" },
+    { key: "reels_views_avg", label: "Média de visualizações por Reel", format: "number" },
+    // Posts no feed
+    { key: "posts_total", label: "Total de Posts no feed publicados no período", format: "number" },
+    { key: "posts_interactions_total", label: "Total de interações somando todos os posts do feed", format: "number" },
+    // Stories
+    { key: "stories_total", label: "Total de Stories publicados no período", format: "number" },
+    { key: "stories_views_total", label: "Visualizações totais somando todos os Stories", format: "number" },
   ],
   tiktok_organic: [
     { key: "views_total", label: "Visualizações Totais", format: "number" },

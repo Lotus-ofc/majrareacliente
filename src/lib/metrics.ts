@@ -13,6 +13,14 @@ import {
   Percent,
   BarChart3,
   Zap,
+  MessageCircle,
+  Share2,
+  Bookmark,
+  Link2,
+  Repeat,
+  Film,
+  Image as ImageIcon,
+  Clapperboard,
   type LucideIcon,
 } from "lucide-react";
 import type { ReportSource } from "./sources";
@@ -60,10 +68,33 @@ export const METRICS_BY_SOURCE: Record<ReportSource, MetricDef[]> = {
     { key: "cpc", label: "Custo por Clique (CPC)", icon: MousePointerClick, format: "currency" },
   ],
   instagram_organic: [
-    { key: "reach", label: "Contas Alcançadas", icon: Users, format: "number" },
-    { key: "engaged", label: "Contas Engajadas", icon: Heart, format: "number" },
+    // Resumo geral do perfil
+    { key: "reach", label: "Alcance", icon: Users, format: "number" },
+    { key: "engagement", label: "Engajamento", icon: Heart, format: "number" },
+    { key: "engagement_rate", label: "Taxa de Engajamento", icon: Percent, format: "percent" },
+    { key: "frequency", label: "Frequência", icon: Repeat, format: "number" },
+    { key: "views", label: "Visualizações", icon: Eye, format: "number" },
+    { key: "interactions", label: "Interações", icon: Zap, format: "number" },
+    // Detalhamento de interações
+    { key: "likes", label: "Curtidas", icon: Heart, format: "number" },
+    { key: "comments", label: "Comentários", icon: MessageCircle, format: "number" },
+    { key: "shares", label: "Compartilhamentos", icon: Share2, format: "number" },
+    { key: "saves", label: "Salvos", icon: Bookmark, format: "number" },
+    { key: "profile_link_clicks", label: "Cliques no Link do Perfil", icon: Link2, format: "number" },
+    // Seguidores
+    { key: "followers_total", label: "Total de Seguidores", icon: Users, format: "number" },
     { key: "new_followers", label: "Novos Seguidores", icon: UserPlus, format: "number" },
-    { key: "profile_visits", label: "Visitas ao Perfil", icon: Eye, format: "number" },
+    { key: "growth_rate", label: "Taxa de Crescimento", icon: TrendingUp, format: "percent" },
+    // Reels
+    { key: "reels_total", label: "Total de Reels", icon: Film, format: "number" },
+    { key: "reels_views_total", label: "Visualizações Totais (Reels)", icon: PlayCircle, format: "number" },
+    { key: "reels_views_avg", label: "Média de Views por Reel", icon: PlayCircle, format: "number" },
+    // Posts no feed
+    { key: "posts_total", label: "Total de Posts (feed)", icon: ImageIcon, format: "number" },
+    { key: "posts_interactions_total", label: "Total de Interações (Posts)", icon: Zap, format: "number" },
+    // Stories
+    { key: "stories_total", label: "Total de Stories", icon: Clapperboard, format: "number" },
+    { key: "stories_views_total", label: "Visualizações Totais (Stories)", icon: Eye, format: "number" },
   ],
   tiktok_organic: [
     { key: "views_total", label: "Visualizações Totais", icon: PlayCircle, format: "number" },

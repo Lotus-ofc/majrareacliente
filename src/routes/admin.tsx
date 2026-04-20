@@ -16,7 +16,20 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { CalendarDays, Copy, Loader2, Plus, Save, ShieldCheck, UserCog, Wallet } from "lucide-react";
+import {
+  CalendarDays,
+  Copy,
+  FileText,
+  Loader2,
+  Plus,
+  Save,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  Upload,
+  UserCog,
+  Wallet,
+} from "lucide-react";
 import { SOURCES, type ReportSource } from "@/lib/sources";
 import { METRICS_BY_SOURCE } from "@/lib/metrics";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -44,6 +57,7 @@ interface ReportRow {
   source: ReportSource;
   iframe_url: string | null;
   metrics: Record<string, string> | null;
+  pdf_path: string | null;
 }
 
 function AdminPage() {

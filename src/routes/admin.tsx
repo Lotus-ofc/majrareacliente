@@ -647,3 +647,106 @@ function ManageReportsDialog({
     </Dialog>
   );
 }
+
+function PdfImportBlock({
+  source,
+  pdfPath,
+  parsing,
+  onUpload,
+  onRemove,
+}: {
+  source: ReportSource;
+  pdfPath: string | null;
+  parsing: boolean;
+  onUpload: (file: File) => void;
+  onRemove: () => void;
+}) {
+  const [dragOver, setDragOver] = useState(false);
+  const inputId = `pdf-input-${source}`;
+
+  const onDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) onUpload(file);
+  };
+
+  return (
+    <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <Label className="flex items-center gap-2 text-xs">
+          <Sparkles className="h-3.5 w-3.5 text-lilac" />
+          Preencher métricas com IA (PDF do mLabs)
+        </Label>
+        {pdfPath && !parsing && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onRemove}
+            className="h-7 px-2 text-[11px] text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="mr-1 h-3 w-3" />
+            Remover
+          </Button>
+        )}
+      </div>
+
+      <label
+        htmlFor={inputId}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-4 text-center transition-colors ${
+          dragOver
+            ? "border-primary bg-primary/10"
+            : pdfPath
+              ? "border-mint/40 bg-mint/5"
+              : "border-border bg-background/40 hover:border-primary/50 hover:bg-primary/5"
+        }`}
+      >
+        {parsing ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin text-lilac" />
+            <p className="text-xs text-muted-foreground">
+              Lendo PDF e extraindo métricas com IA…
+            </p>
+          </>
+        ) : pdfPath ? (
+          <>
+            <FileText className="h-5 w-5 text-mint" />
+            <p className="text-xs font-medium text-foreground">PDF importado ✓</p>
+            <p className="text-[11px] text-muted-foreground">
+              Clique ou arraste outro PDF para reprocessar
+            </p>
+          </>
+        ) : (
+          <>
+            <Upload className="h-5 w-5 text-lilac" />
+            <p className="text-xs font-medium text-foreground">
+              Arraste o PDF aqui ou clique para enviar
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              A IA vai ler e preencher os campos abaixo automaticamente (máx 25MB)
+            </p>
+          </>
+        )}
+        <input
+          id={inputId}
+          type="file"
+          accept="application/pdf"
+          className="hidden"
+          disabled={parsing}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onUpload(file);
+            e.target.value = "";
+          }}
+        />
+      </label>
+    </div>
+  );
+}

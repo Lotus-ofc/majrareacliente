@@ -489,7 +489,11 @@ function ManageReportsDialog({
           source: s.key,
           iframe_url: url,
           metrics: cleanedMetrics,
-          hasContent: url.length > 0 || Object.keys(cleanedMetrics).length > 0,
+          pdf_path: pdfPaths[s.key] ?? null,
+          hasContent:
+            url.length > 0 ||
+            Object.keys(cleanedMetrics).length > 0 ||
+            !!pdfPaths[s.key],
         };
       });
 
@@ -560,6 +564,14 @@ function ManageReportsDialog({
                 const sourceMetrics = metrics[s.key] ?? {};
                 return (
                   <TabsContent key={s.key} value={s.key} className="mt-0 space-y-4">
+                    <PdfImportBlock
+                      source={s.key}
+                      pdfPath={pdfPaths[s.key] ?? null}
+                      parsing={parsingSource === s.key}
+                      onUpload={(file) => handlePdfUpload(s.key, file)}
+                      onRemove={() => removePdf(s.key)}
+                    />
+
                     <div className="rounded-lg border border-border bg-card/50 p-3">
                       <Label className="text-xs">URL do relatório completo (mLabs)</Label>
                       <Input

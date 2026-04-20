@@ -377,6 +377,8 @@ function ManageReportsDialog({
 }) {
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [metrics, setMetrics] = useState<Record<string, Record<string, string>>>({});
+  const [pdfPaths, setPdfPaths] = useState<Record<string, string | null>>({});
+  const [parsingSource, setParsingSource] = useState<ReportSource | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -385,17 +387,20 @@ function ManageReportsDialog({
     (async () => {
       const { data } = await supabase
         .from("client_reports")
-        .select("source, iframe_url, metrics")
+        .select("source, iframe_url, metrics, pdf_path")
         .eq("client_id", client.id);
       if (cancelled) return;
       const urlMap: Record<string, string> = {};
       const metricMap: Record<string, Record<string, string>> = {};
+      const pdfMap: Record<string, string | null> = {};
       ((data ?? []) as unknown as ReportRow[]).forEach((r) => {
         urlMap[r.source] = r.iframe_url ?? "";
         metricMap[r.source] = (r.metrics ?? {}) as Record<string, string>;
+        pdfMap[r.source] = r.pdf_path ?? null;
       });
       setUrls(urlMap);
       setMetrics(metricMap);
+      setPdfPaths(pdfMap);
       setLoading(false);
     })();
     return () => {
@@ -408,6 +413,64 @@ function ManageReportsDialog({
       ...prev,
       [source]: { ...(prev[source] ?? {}), [key]: value },
     }));
+  };
+
+  const handlePdfUpload = async (source: ReportSource, file: File) => {
+    if (file.type !== "application/pdf") {
+      toast.error("Envie um arquivo PDF");
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("PDF muito grande (máx 25MB)");
+      return;
+    }
+    setParsingSource(source);
+    const path = `${client.id}/${source}.pdf`;
+    try {
+      const { error: upErr } = await supabase.storage
+        .from("report-pdfs")
+        .upload(path, file, { upsert: true, contentType: "application/pdf" });
+      if (upErr) throw upErr;
+
+      toast.info("PDF enviado. Lendo com IA…", { duration: 3000 });
+
+      const { data, error } = await supabase.functions.invoke("parse-report-pdf", {
+        body: { client_id: client.id, source, pdf_path: path },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const extracted = (data?.metrics ?? {}) as Record<string, string>;
+      setMetrics((prev) => ({
+        ...prev,
+        [source]: { ...(prev[source] ?? {}), ...extracted },
+      }));
+      setPdfPaths((prev) => ({ ...prev, [source]: path }));
+      toast.success(
+        `IA extraiu ${data?.count ?? Object.keys(extracted).length} métrica(s). Revise e salve.`,
+      );
+    } catch (e) {
+      toast.error("Falha ao processar PDF", { description: (e as Error).message });
+    } finally {
+      setParsingSource(null);
+    }
+  };
+
+  const removePdf = async (source: ReportSource) => {
+    const path = pdfPaths[source];
+    if (!path) return;
+    try {
+      await supabase.storage.from("report-pdfs").remove([path]);
+      await supabase
+        .from("client_reports")
+        .update({ pdf_path: null })
+        .eq("client_id", client.id)
+        .eq("source", source);
+      setPdfPaths((prev) => ({ ...prev, [source]: null }));
+      toast.success("PDF removido");
+    } catch (e) {
+      toast.error("Erro ao remover PDF", { description: (e as Error).message });
+    }
   };
 
   const save = async () => {

@@ -85,10 +85,27 @@ const METRICS: Record<
     { key: "stories_views_total", label: "Visualizações totais somando todos os Stories", format: "number" },
   ],
   tiktok_organic: [
-    { key: "views_total", label: "Visualizações Totais", format: "number" },
-    { key: "new_followers", label: "Novos Seguidores", format: "number" },
-    { key: "engagement_rate", label: "Taxa de Engajamento Geral (em %)", format: "percent" },
+    // Resumo geral do perfil
+    { key: "likes", label: "Curtidas (total no período)", format: "number" },
+    { key: "comments", label: "Comentários (total no período)", format: "number" },
+    { key: "shares", label: "Compartilhamentos (total no período)", format: "number" },
     { key: "profile_views", label: "Visualizações do Perfil", format: "number" },
+    { key: "video_views_total", label: "Visualizações nos Vídeos (soma de todos os vídeos)", format: "number" },
+    { key: "following", label: "Seguindo (quantos perfis a conta segue)", format: "number" },
+    { key: "videos_total", label: "Total de Vídeos publicados no período", format: "number" },
+    { key: "posts_total", label: "Total de Posts publicados no período", format: "number" },
+    // Seguidores
+    { key: "followers_total", label: "Total atual de Seguidores no fim do período", format: "number" },
+    { key: "new_followers", label: "Novos Seguidores no período (crescimento absoluto)", format: "number" },
+    { key: "growth_rate", label: "Taxa de Crescimento de seguidores (em %)", format: "percent" },
+    // Engajamento
+    { key: "engagement_rate", label: "Taxa de Engajamento Geral (em %)", format: "percent" },
+    { key: "interactions_total", label: "Total de Interações somando todos os posts", format: "number" },
+    { key: "interactions_avg_per_post", label: "Média de Interações por Post", format: "number" },
+    // Vídeos
+    { key: "video_views_avg_per_post", label: "Média de Visualizações por Post/Vídeo", format: "number" },
+    { key: "avg_watch_time", label: "Tempo Médio de Visualização em segundos (apenas o número, ex: 3.3 para 3,3s)", format: "number" },
+    { key: "watched_full_rate", label: "Taxa Média de quem Assistiu o Vídeo até o Fim (em %)", format: "percent" },
   ],
 };
 

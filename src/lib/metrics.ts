@@ -97,10 +97,27 @@ export const METRICS_BY_SOURCE: Record<ReportSource, MetricDef[]> = {
     { key: "stories_views_total", label: "Visualizações Totais (Stories)", icon: Eye, format: "number" },
   ],
   tiktok_organic: [
-    { key: "views_total", label: "Visualizações Totais", icon: PlayCircle, format: "number" },
-    { key: "new_followers", label: "Novos Seguidores", icon: UserPlus, format: "number" },
-    { key: "engagement_rate", label: "Taxa de Engajamento Geral", icon: Percent, format: "percent" },
+    // Resumo geral
+    { key: "likes", label: "Curtidas", icon: Heart, format: "number" },
+    { key: "comments", label: "Comentários", icon: MessageCircle, format: "number" },
+    { key: "shares", label: "Compartilhamentos", icon: Share2, format: "number" },
     { key: "profile_views", label: "Visualizações do Perfil", icon: Eye, format: "number" },
+    { key: "video_views_total", label: "Visualizações nos Vídeos", icon: PlayCircle, format: "number" },
+    { key: "following", label: "Seguindo", icon: UserPlus, format: "number" },
+    { key: "videos_total", label: "Total de Vídeos", icon: Film, format: "number" },
+    { key: "posts_total", label: "Total de Posts", icon: ImageIcon, format: "number" },
+    // Seguidores
+    { key: "followers_total", label: "Total de Seguidores", icon: Users, format: "number" },
+    { key: "new_followers", label: "Novos Seguidores", icon: UserPlus, format: "number" },
+    { key: "growth_rate", label: "Taxa de Crescimento", icon: TrendingUp, format: "percent" },
+    // Engajamento
+    { key: "engagement_rate", label: "Taxa de Engajamento Geral", icon: Percent, format: "percent" },
+    { key: "interactions_total", label: "Total de Interações", icon: Zap, format: "number" },
+    { key: "interactions_avg_per_post", label: "Média de Interações por Post", icon: Zap, format: "number" },
+    // Vídeos
+    { key: "video_views_avg_per_post", label: "Média de Visualizações por Post", icon: PlayCircle, format: "number" },
+    { key: "avg_watch_time", label: "Tempo Médio de Visualização (s)", icon: PlayCircle, format: "number" },
+    { key: "watched_full_rate", label: "Taxa Média de Vídeo Assistido até o Fim", icon: Percent, format: "percent" },
   ],
 };
 

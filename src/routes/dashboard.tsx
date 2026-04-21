@@ -70,6 +70,15 @@ function DashboardPage() {
         setReports((data ?? []) as unknown as ReportRow[]);
         setLoading(false);
       });
+    supabase
+      .from("profiles")
+      .select("full_name, company")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (data) setProfile(data);
+      });
     return () => {
       cancelled = true;
     };

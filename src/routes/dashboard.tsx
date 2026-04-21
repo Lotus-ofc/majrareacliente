@@ -255,7 +255,12 @@ function DashboardPage() {
               </div>
             ))}
 
-          {section === "calendar" && <ClientCalendarView clientId={user.id} />}
+          {section === "calendar" && (
+            <ClientCalendarView
+              clientId={user.id}
+              clientName={profile?.company || profile?.full_name}
+            />
+          )}
           {section === "finance" && <ClientFinanceView clientId={user.id} />}
         </main>
       </div>

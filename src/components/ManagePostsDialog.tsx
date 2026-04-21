@@ -31,9 +31,14 @@ import {
   UploadCloud,
   Film,
   ImageIcon,
+  GripVertical,
+  Layers,
+  Square,
+  Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateBR } from "@/lib/format";
+import { InstagramPreview, type PostFormat } from "./InstagramPreview";
 
 type PostStatus = "pending" | "approved" | "published";
 
@@ -41,6 +46,8 @@ interface Post {
   id: string;
   scheduled_date: string;
   image_url: string | null;
+  media_urls: string[];
+  post_format: PostFormat;
   caption: string;
   status: PostStatus;
 }
@@ -58,16 +65,48 @@ const STATUS_CLS: Record<PostStatus, string> = {
   published: "bg-primary/15 text-lilac border-primary/40",
 };
 
+const FORMAT_OPTIONS: Array<{
+  value: PostFormat;
+  label: string;
+  hint: string;
+  icon: React.ComponentType<{ className?: string }>;
+  ratio: string;
+}> = [
+  {
+    value: "single",
+    label: "Post único",
+    hint: "Foto ou vídeo no feed (4:5 — 1080×1350)",
+    icon: Square,
+    ratio: "4:5",
+  },
+  {
+    value: "carousel",
+    label: "Carrossel",
+    hint: "Várias mídias no feed (4:5 — 1080×1350)",
+    icon: Layers,
+    ratio: "4:5",
+  },
+  {
+    value: "reel",
+    label: "Reel",
+    hint: "Vídeo vertical (9:16 — 1080×1920)",
+    icon: Smartphone,
+    ratio: "9:16",
+  },
+];
+
 interface FormState {
   scheduled_date: string;
-  image_url: string;
+  media_urls: string[];
+  post_format: PostFormat;
   caption: string;
   status: PostStatus;
 }
 
 const emptyForm: FormState = {
   scheduled_date: new Date().toISOString().slice(0, 10),
-  image_url: "",
+  media_urls: [],
+  post_format: "single",
   caption: "",
   status: "pending",
 };
@@ -100,10 +139,27 @@ export function ManagePostsDialog({
     setLoading(true);
     const { data } = await supabase
       .from("editorial_posts")
-      .select("id, scheduled_date, image_url, caption, status")
+      .select("id, scheduled_date, image_url, media_urls, post_format, caption, status")
       .eq("client_id", clientId)
       .order("scheduled_date", { ascending: true });
-    setPosts((data ?? []) as Post[]);
+    const normalized = (data ?? []).map((p) => {
+      const mu = Array.isArray(p.media_urls)
+        ? (p.media_urls as unknown[]).filter(
+            (u): u is string => typeof u === "string" && u.length > 0,
+          )
+        : [];
+      const finalMedia = mu.length > 0 ? mu : p.image_url ? [p.image_url] : [];
+      return {
+        id: p.id,
+        scheduled_date: p.scheduled_date,
+        image_url: p.image_url,
+        media_urls: finalMedia,
+        post_format: (p.post_format ?? "single") as PostFormat,
+        caption: p.caption,
+        status: p.status as PostStatus,
+      };
+    });
+    setPosts(normalized);
     setLoading(false);
   };
 
@@ -116,7 +172,8 @@ export function ManagePostsDialog({
     setEditingId(p.id);
     setForm({
       scheduled_date: p.scheduled_date,
-      image_url: p.image_url ?? "",
+      media_urls: p.media_urls,
+      post_format: p.post_format,
       caption: p.caption,
       status: p.status,
     });
@@ -127,53 +184,109 @@ export function ManagePostsDialog({
     setForm(emptyForm);
   };
 
-  const uploadFile = async (file: File) => {
-    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
-      toast.error("Formato não suportado", {
-        description: "Envie uma imagem ou vídeo.",
-      });
-      return;
+  const uploadFiles = async (files: File[]) => {
+    if (files.length === 0) return;
+
+    // Format guards
+    if (form.post_format === "reel") {
+      const f = files[0];
+      if (!f.type.startsWith("video/")) {
+        toast.error("Reel precisa ser vídeo", {
+          description: "Envie um arquivo de vídeo vertical (9:16).",
+        });
+        return;
+      }
     }
-    if (file.size > MAX_BYTES) {
-      toast.error("Arquivo muito grande", {
-        description: "Limite de 50 MB por arquivo.",
+    if (form.post_format === "single" && files.length > 1) {
+      toast.warning("Apenas 1 mídia será usada", {
+        description: 'Para várias mídias, troque o tipo para "Carrossel".',
       });
-      return;
     }
+
     setUploading(true);
-    const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
-    const path = `${clientId}/${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage
-      .from("post-media")
-      .upload(path, file, {
-        cacheControl: "3600",
-        upsert: false,
-        contentType: file.type,
-      });
-    if (error) {
-      setUploading(false);
-      toast.error("Falha ao enviar", { description: error.message });
-      return;
+    const newUrls: string[] = [];
+    for (const file of files) {
+      if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+        toast.error(`Formato não suportado: ${file.name}`);
+        continue;
+      }
+      if (file.size > MAX_BYTES) {
+        toast.error(`Arquivo muito grande: ${file.name}`, {
+          description: "Limite de 50 MB.",
+        });
+        continue;
+      }
+      const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+      const path = `${clientId}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage
+        .from("post-media")
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type,
+        });
+      if (error) {
+        toast.error(`Falha em ${file.name}`, { description: error.message });
+        continue;
+      }
+      const { data } = supabase.storage.from("post-media").getPublicUrl(path);
+      newUrls.push(data.publicUrl);
     }
-    const { data } = supabase.storage.from("post-media").getPublicUrl(path);
-    setForm((f) => ({ ...f, image_url: data.publicUrl }));
     setUploading(false);
-    toast.success("Mídia enviada");
+
+    setForm((f) => {
+      let next: string[];
+      if (f.post_format === "carousel") {
+        next = [...f.media_urls, ...newUrls].slice(0, 10); // IG limit
+      } else {
+        next = newUrls.slice(0, 1);
+      }
+      return { ...f, media_urls: next };
+    });
+
+    if (newUrls.length > 0) toast.success("Mídia enviada");
   };
 
   const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) void uploadFile(file);
+    const files = Array.from(e.dataTransfer.files ?? []);
+    if (files.length > 0) void uploadFiles(files);
+  };
+
+  const removeMediaAt = (i: number) => {
+    setForm((f) => ({
+      ...f,
+      media_urls: f.media_urls.filter((_, idx) => idx !== i),
+    }));
+  };
+
+  const moveMedia = (from: number, to: number) => {
+    setForm((f) => {
+      if (to < 0 || to >= f.media_urls.length) return f;
+      const arr = [...f.media_urls];
+      const [item] = arr.splice(from, 1);
+      arr.splice(to, 0, item);
+      return { ...f, media_urls: arr };
+    });
   };
 
   const submit = async () => {
+    if (form.media_urls.length === 0) {
+      toast.error("Adicione ao menos uma mídia");
+      return;
+    }
+    if (form.post_format === "carousel" && form.media_urls.length < 2) {
+      toast.error("Carrossel precisa de pelo menos 2 mídias");
+      return;
+    }
     setSubmitting(true);
     const payload = {
       client_id: clientId,
       scheduled_date: form.scheduled_date,
-      image_url: form.image_url.trim() || null,
+      image_url: form.media_urls[0] ?? null, // legacy compat
+      media_urls: form.media_urls,
+      post_format: form.post_format,
       caption: form.caption,
       status: form.status,
     };
@@ -201,210 +314,321 @@ export function ManagePostsDialog({
     void fetchPosts();
   };
 
-  const mediaIsVideo = form.image_url ? isVideoUrl(form.image_url) : false;
+  const canAddMore =
+    form.post_format === "carousel"
+      ? form.media_urls.length < 10
+      : form.media_urls.length === 0;
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="glass-strong max-h-[92vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="glass-strong max-h-[92vh] overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>Aprovação de Posts — {clientName}</DialogTitle>
           <DialogDescription>
-            Crie e edite os posts. O cliente poderá aprovar os pendentes.
+            Crie posts únicos, carrosséis e reels. O cliente verá uma simulação fiel ao Instagram.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Form */}
-        <div className="rounded-xl border border-border bg-card/60 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold">
-              {editingId ? "Editar post" : "Novo post"}
-            </h3>
-            {editingId && (
-              <Button size="sm" variant="ghost" onClick={cancelEdit}>
-                <X className="mr-1 h-3.5 w-3.5" /> Cancelar edição
-              </Button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label className="text-xs">Data programada</Label>
-              <Input
-                type="date"
-                value={form.scheduled_date}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, scheduled_date: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v) =>
-                  setForm((f) => ({ ...f, status: v as PostStatus }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUS_OPTIONS.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
+          {/* Form */}
+          <div className="rounded-xl border border-border bg-card/60 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold">
+                {editingId ? "Editar post" : "Novo post"}
+              </h3>
+              {editingId && (
+                <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                  <X className="mr-1 h-3.5 w-3.5" /> Cancelar edição
+                </Button>
+              )}
             </div>
 
-            {/* Drag & drop uploader */}
-            <div className="space-y-2 sm:col-span-2">
-              <Label className="text-xs">Mídia (imagem ou vídeo)</Label>
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={onDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className={cn(
-                  "group relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-all",
-                  dragOver
-                    ? "border-primary/70 bg-primary/10"
-                    : "border-border bg-background/40 hover:border-primary/40 hover:bg-secondary/40",
-                )}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,video/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) void uploadFile(f);
-                    e.target.value = "";
-                  }}
-                />
-                {uploading ? (
-                  <>
-                    <Loader2 className="h-6 w-6 animate-spin text-lilac" />
-                    <p className="text-xs text-muted-foreground">Enviando…</p>
-                  </>
-                ) : form.image_url ? (
-                  <div className="flex w-full flex-col items-center gap-3">
-                    <div className="relative h-40 w-32 overflow-hidden rounded-lg border border-border bg-secondary/40">
-                      {mediaIsVideo ? (
-                        <video
-                          src={form.image_url}
-                          className="h-full w-full object-cover"
-                          muted
-                          playsInline
-                        />
-                      ) : (
-                        <img
-                          src={form.image_url}
-                          alt="preview"
-                          className="h-full w-full object-cover"
-                        />
+            {/* Format selector */}
+            <div className="mb-4 space-y-2">
+              <Label className="text-xs">Tipo de publicação</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {FORMAT_OPTIONS.map((opt) => {
+                  const Icon = opt.icon;
+                  const active = form.post_format === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setForm((f) => {
+                          let next = f.media_urls;
+                          if (opt.value !== "carousel" && next.length > 1) {
+                            next = next.slice(0, 1);
+                          }
+                          return { ...f, post_format: opt.value, media_urls: next };
+                        });
+                      }}
+                      className={cn(
+                        "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-all",
+                        active
+                          ? "border-primary/70 bg-primary/10 shadow-[0_0_20px_-8px_oklch(0.42_0.22_305/0.5)]"
+                          : "border-border bg-background/40 hover:border-primary/40",
                       )}
-                      <span className="absolute left-1 top-1 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
-                        {mediaIsVideo ? (
-                          <Film className="h-3 w-3" />
-                        ) : (
-                          <ImageIcon className="h-3 w-3" />
-                        )}
-                        {mediaIsVideo ? "Vídeo" : "Imagem"}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon
+                          className={cn(
+                            "h-4 w-4",
+                            active ? "text-lilac" : "text-muted-foreground",
+                          )}
+                        />
+                        <span className="text-sm font-medium">{opt.label}</span>
+                        <span className="ml-auto rounded bg-secondary px-1.5 py-0.5 text-[9px] text-muted-foreground">
+                          {opt.ratio}
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-tight text-muted-foreground">
+                        {opt.hint}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="text-xs">Data programada</Label>
+                <Input
+                  type="date"
+                  value={form.scheduled_date}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, scheduled_date: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Status</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, status: v as PostStatus }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_OPTIONS.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Drag & drop uploader */}
+              <div className="space-y-2 sm:col-span-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">
+                    Mídia{" "}
+                    {form.post_format === "carousel" && (
+                      <span className="text-muted-foreground">
+                        ({form.media_urls.length}/10)
                       </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          fileInputRef.current?.click();
-                        }}
-                      >
-                        Trocar
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setForm((f) => ({ ...f, image_url: "" }));
-                        }}
-                      >
-                        <Trash2 className="mr-1 h-3.5 w-3.5" /> Remover
-                      </Button>
-                    </div>
+                    )}
+                  </Label>
+                  {form.post_format === "carousel" && (
+                    <span className="text-[10px] text-muted-foreground">
+                      Arraste o ícone ⋮⋮ para reordenar
+                    </span>
+                  )}
+                </div>
+
+                {/* Existing media list (carousel) */}
+                {form.media_urls.length > 0 && (
+                  <div
+                    className={cn(
+                      "grid gap-2",
+                      form.post_format === "reel"
+                        ? "grid-cols-1 sm:grid-cols-2"
+                        : "grid-cols-3 sm:grid-cols-4",
+                    )}
+                  >
+                    {form.media_urls.map((url, i) => {
+                      const vid = isVideoUrl(url);
+                      return (
+                        <div
+                          key={url + i}
+                          className={cn(
+                            "group relative overflow-hidden rounded-lg border border-border bg-secondary/40",
+                            form.post_format === "reel"
+                              ? "aspect-[9/16]"
+                              : "aspect-[4/5]",
+                          )}
+                        >
+                          {vid ? (
+                            <video
+                              src={url}
+                              className="h-full w-full object-cover"
+                              muted
+                              playsInline
+                            />
+                          ) : (
+                            <img
+                              src={url}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          )}
+                          <span className="absolute left-1 top-1 inline-flex items-center gap-0.5 rounded bg-black/60 px-1 py-0.5 text-[9px] text-white">
+                            {vid ? (
+                              <Film className="h-2.5 w-2.5" />
+                            ) : (
+                              <ImageIcon className="h-2.5 w-2.5" />
+                            )}
+                            {i + 1}
+                          </span>
+                          <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/70 px-1 py-1 opacity-0 transition-opacity group-hover:opacity-100">
+                            {form.post_format === "carousel" ? (
+                              <div className="flex gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => moveMedia(i, i - 1)}
+                                  disabled={i === 0}
+                                  className="rounded bg-white/10 p-0.5 text-white disabled:opacity-30"
+                                  title="Mover para a esquerda"
+                                >
+                                  <GripVertical className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => removeMediaAt(i)}
+                              className="rounded bg-red-500/80 p-0.5 text-white"
+                              title="Remover"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-lilac">
-                      <UploadCloud className="h-5 w-5" />
-                    </div>
-                    <p className="text-sm font-medium text-foreground">
-                      Arraste e solte aqui
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      ou clique para selecionar — imagem ou vídeo (até 50 MB)
-                    </p>
-                  </>
+                )}
+
+                {/* Drop zone */}
+                {canAddMore && (
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragOver(true);
+                    }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={onDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={cn(
+                      "group relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-all",
+                      dragOver
+                        ? "border-primary/70 bg-primary/10"
+                        : "border-border bg-background/40 hover:border-primary/40 hover:bg-secondary/40",
+                    )}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept={
+                        form.post_format === "reel" ? "video/*" : "image/*,video/*"
+                      }
+                      multiple={form.post_format === "carousel"}
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        if (files.length > 0) void uploadFiles(files);
+                        e.target.value = "";
+                      }}
+                    />
+                    {uploading ? (
+                      <>
+                        <Loader2 className="h-6 w-6 animate-spin text-lilac" />
+                        <p className="text-xs text-muted-foreground">Enviando…</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-lilac">
+                          <UploadCloud className="h-4 w-4" />
+                        </div>
+                        <p className="text-sm font-medium text-foreground">
+                          {form.media_urls.length === 0
+                            ? "Arraste e solte aqui"
+                            : "Adicionar mais"}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {form.post_format === "reel"
+                            ? "Apenas vídeo vertical (9:16)"
+                            : form.post_format === "carousel"
+                              ? "Selecione múltiplos arquivos (até 10)"
+                              : "Imagem ou vídeo (até 50 MB)"}
+                        </p>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                Você também pode colar uma URL externa abaixo se preferir.
-              </p>
-              <Input
-                placeholder="https://…  (opcional)"
-                value={form.image_url}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, image_url: e.target.value }))
-                }
-              />
+
+              <div className="space-y-2 sm:col-span-2">
+                <Label className="text-xs">Legenda</Label>
+                <Textarea
+                  rows={6}
+                  value={form.caption}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, caption: e.target.value }))
+                  }
+                  placeholder="Texto que será publicado…&#10;&#10;As quebras de linha são preservadas."
+                  className="whitespace-pre-wrap"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Use Enter para criar quebras de linha — elas aparecerão exatamente assim para o cliente.
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-2 sm:col-span-2">
-              <Label className="text-xs">Legenda</Label>
-              <Textarea
-                rows={6}
-                value={form.caption}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, caption: e.target.value }))
-                }
-                placeholder="Texto que será publicado…&#10;&#10;As quebras de linha são preservadas."
-                className="whitespace-pre-wrap"
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Use Enter para criar quebras de linha — elas aparecerão exatamente assim para o cliente.
-              </p>
+            <div className="mt-3 flex justify-end">
+              <Button
+                onClick={submit}
+                disabled={submitting || uploading || !form.scheduled_date}
+                className="bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)]"
+              >
+                {submitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : editingId ? (
+                  <>
+                    <Check className="mr-2 h-4 w-4" /> Salvar alterações
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 h-4 w-4" /> Criar post
+                  </>
+                )}
+              </Button>
             </div>
           </div>
 
-          <div className="mt-3 flex justify-end">
-            <Button
-              onClick={submit}
-              disabled={submitting || uploading || !form.scheduled_date}
-              className="bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)]"
-            >
-              {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : editingId ? (
-                <>
-                  <Check className="mr-2 h-4 w-4" /> Salvar alterações
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" /> Criar post
-                </>
-              )}
-            </Button>
+          {/* Live preview */}
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Pré-visualização Instagram
+            </Label>
+            <div className="rounded-xl border border-border bg-gradient-to-br from-zinc-900 to-zinc-950 p-4">
+              <InstagramPreview
+                format={form.post_format}
+                mediaUrls={form.media_urls}
+                caption={form.caption}
+                username={clientName.toLowerCase().replace(/\s+/g, "_") || "cliente"}
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              É exatamente assim que o cliente verá o post para aprovação.
+            </p>
           </div>
         </div>
 
@@ -422,24 +646,27 @@ export function ManagePostsDialog({
           ) : (
             <ul className="space-y-2">
               {posts.map((p) => {
-                const isVid = p.image_url ? isVideoUrl(p.image_url) : false;
+                const cover = p.media_urls[0] ?? p.image_url;
+                const isVid = cover ? isVideoUrl(cover) : false;
+                const fmt = FORMAT_OPTIONS.find((o) => o.value === p.post_format);
+                const FmtIcon = fmt?.icon ?? Square;
                 return (
                   <li
                     key={p.id}
                     className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border bg-card/50 p-3"
                   >
                     <div className="flex min-w-0 flex-1 gap-3">
-                      {p.image_url ? (
+                      {cover ? (
                         isVid ? (
                           <video
-                            src={p.image_url}
+                            src={cover}
                             className="h-14 w-14 flex-shrink-0 rounded-md object-cover"
                             muted
                             playsInline
                           />
                         ) : (
                           <img
-                            src={p.image_url}
+                            src={cover}
                             alt=""
                             className="h-14 w-14 flex-shrink-0 rounded-md object-cover"
                           />
@@ -448,7 +675,7 @@ export function ManagePostsDialog({
                         <div className="h-14 w-14 flex-shrink-0 rounded-md bg-secondary" />
                       )}
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs text-muted-foreground">
                             {formatDateBR(p.scheduled_date)}
                           </span>
@@ -460,6 +687,13 @@ export function ManagePostsDialog({
                           >
                             {STATUS_OPTIONS.find((s) => s.value === p.status)?.label}
                           </Badge>
+                          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/60 px-2 py-0 text-[10px] text-muted-foreground">
+                            <FmtIcon className="h-3 w-3" />
+                            {fmt?.label}
+                            {p.post_format === "carousel" && (
+                              <span>· {p.media_urls.length}</span>
+                            )}
+                          </span>
                         </div>
                         <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-foreground/90">
                           {p.caption || (

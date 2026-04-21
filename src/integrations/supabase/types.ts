@@ -66,6 +66,8 @@ export type Database = {
           created_at: string
           id: string
           image_url: string | null
+          media_urls: Json
+          post_format: Database["public"]["Enums"]["post_format"]
           scheduled_date: string
           status: Database["public"]["Enums"]["post_status"]
           updated_at: string
@@ -76,6 +78,8 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          media_urls?: Json
+          post_format?: Database["public"]["Enums"]["post_format"]
           scheduled_date: string
           status?: Database["public"]["Enums"]["post_status"]
           updated_at?: string
@@ -86,6 +90,8 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          media_urls?: Json
+          post_format?: Database["public"]["Enums"]["post_format"]
           scheduled_date?: string
           status?: Database["public"]["Enums"]["post_status"]
           updated_at?: string
@@ -189,6 +195,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "client"
       invoice_status: "pending" | "paid" | "overdue"
+      post_format: "single" | "carousel" | "reel"
       post_status: "pending" | "approved" | "published"
       report_source:
         | "overview"
@@ -327,6 +334,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "client"],
       invoice_status: ["pending", "paid", "overdue"],
+      post_format: ["single", "carousel", "reel"],
       post_status: ["pending", "approved", "published"],
       report_source: [
         "overview",

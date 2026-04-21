@@ -1,22 +1,21 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CalendarDays, Check, ImageOff, Sparkles } from "lucide-react";
+import { Loader2, CalendarDays, Check, Sparkles, Layers, Square, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { InstagramPreview, type PostFormat } from "./InstagramPreview";
 
 interface Post {
   id: string;
   scheduled_date: string;
   image_url: string | null;
+  media_urls: string[];
+  post_format: PostFormat;
   caption: string;
   status: "pending" | "approved" | "published";
-}
-
-function isVideoUrl(url: string) {
-  return /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(url);
 }
 
 const STATUS_META: Record<Post["status"], { label: string; cls: string }> = {
@@ -34,13 +33,19 @@ const STATUS_META: Record<Post["status"], { label: string; cls: string }> = {
   },
 };
 
+const FORMAT_META: Record<PostFormat, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
+  single: { label: "Post", icon: Square },
+  carousel: { label: "Carrossel", icon: Layers },
+  reel: { label: "Reel", icon: Smartphone },
+};
+
 const COLUMNS: Array<{ key: Post["status"]; title: string }> = [
   { key: "pending", title: "Pendentes" },
   { key: "approved", title: "Aprovados" },
   { key: "published", title: "Publicados" },
 ];
 
-export function ClientCalendarView({ clientId }: { clientId: string }) {
+export function ClientCalendarView({ clientId, clientName }: { clientId: string; clientName?: string }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<string | null>(null);
@@ -48,10 +53,28 @@ export function ClientCalendarView({ clientId }: { clientId: string }) {
   const fetchPosts = async () => {
     const { data } = await supabase
       .from("editorial_posts")
-      .select("id, scheduled_date, image_url, caption, status")
+      .select("id, scheduled_date, image_url, media_urls, post_format, caption, status")
       .eq("client_id", clientId)
       .order("scheduled_date", { ascending: true });
-    setPosts((data ?? []) as Post[]);
+
+    const normalized = (data ?? []).map((p) => {
+      const mu = Array.isArray(p.media_urls)
+        ? (p.media_urls as unknown[]).filter(
+            (u): u is string => typeof u === "string" && u.length > 0,
+          )
+        : [];
+      const finalMedia = mu.length > 0 ? mu : p.image_url ? [p.image_url] : [];
+      return {
+        id: p.id,
+        scheduled_date: p.scheduled_date,
+        image_url: p.image_url,
+        media_urls: finalMedia,
+        post_format: (p.post_format ?? "single") as PostFormat,
+        caption: p.caption,
+        status: p.status as Post["status"],
+      };
+    });
+    setPosts(normalized);
     setLoading(false);
   };
 
@@ -103,6 +126,8 @@ export function ClientCalendarView({ clientId }: { clientId: string }) {
     );
   }
 
+  const username = clientName?.toLowerCase().replace(/\s+/g, "_") || "seu_perfil";
+
   return (
     <div className="grid grid-cols-1 gap-4 fade-in lg:grid-cols-3">
       {COLUMNS.map((col) => {
@@ -110,7 +135,7 @@ export function ClientCalendarView({ clientId }: { clientId: string }) {
         return (
           <div
             key={col.key}
-            className="glass flex flex-col gap-3 rounded-2xl p-4"
+            className="glass flex flex-col gap-4 rounded-2xl p-4"
           >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground">
@@ -121,7 +146,7 @@ export function ClientCalendarView({ clientId }: { clientId: string }) {
               </span>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-6">
               {colPosts.length === 0 && (
                 <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
                   Nada por aqui
@@ -131,6 +156,7 @@ export function ClientCalendarView({ clientId }: { clientId: string }) {
                 <PostCard
                   key={p.id}
                   post={p}
+                  username={username}
                   onApprove={() => approve(p.id)}
                   approving={approvingId === p.id}
                 />
@@ -145,81 +171,67 @@ export function ClientCalendarView({ clientId }: { clientId: string }) {
 
 function PostCard({
   post,
+  username,
   onApprove,
   approving,
 }: {
   post: Post;
+  username: string;
   onApprove: () => void;
   approving: boolean;
 }) {
   const meta = STATUS_META[post.status];
+  const fmt = FORMAT_META[post.post_format];
+  const FmtIcon = fmt.icon;
+
   return (
-    <article className="group overflow-hidden rounded-xl border border-border bg-card/70 transition-all hover:border-primary/40 hover:shadow-[0_0_24px_-8px_oklch(0.42_0.22_305/0.5)]">
-      <div className="relative aspect-[4/5] w-full overflow-hidden bg-secondary/40">
-        {post.image_url ? (
-          isVideoUrl(post.image_url) ? (
-            <video
-              src={post.image_url}
-              className="h-full w-full object-cover"
-              controls
-              playsInline
-              preload="metadata"
-            />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={post.image_url}
-              alt="Pré-visualização do post"
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-              loading="lazy"
-            />
-          )
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <ImageOff className="h-8 w-8" />
-          </div>
-        )}
-        <div className="absolute left-2 top-2">
-          <Badge className={cn("rounded-full px-2.5 py-0.5 text-[10px]", meta.cls)}>
+    <article className="space-y-3">
+      <div className="flex items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+          <CalendarDays className="h-3 w-3" />
+          {formatDateBR(post.scheduled_date)}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Badge className="rounded-full border border-border bg-secondary/60 px-2 py-0 text-[9px] text-muted-foreground">
+            <FmtIcon className="mr-1 h-2.5 w-2.5" />
+            {fmt.label}
+          </Badge>
+          <Badge className={cn("rounded-full px-2 py-0 text-[9px]", meta.cls)}>
             {meta.label}
           </Badge>
         </div>
       </div>
 
-      <div className="space-y-3 p-3">
-        <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-          <CalendarDays className="h-3 w-3" />
-          {formatDateBR(post.scheduled_date)}
-        </div>
-        <p className="line-clamp-6 whitespace-pre-wrap text-xs leading-relaxed text-foreground/90">
-          {post.caption || (
-            <span className="italic text-muted-foreground">Sem legenda</span>
+      <InstagramPreview
+        format={post.post_format}
+        mediaUrls={post.media_urls}
+        caption={post.caption}
+        username={username}
+      />
+
+      {post.status === "pending" && (
+        <Button
+          onClick={onApprove}
+          disabled={approving}
+          size="sm"
+          className="w-full bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] text-primary-foreground shadow-[0_8px_24px_-10px_oklch(0.42_0.22_305/0.7)] transition-transform hover:scale-[1.02]"
+        >
+          {approving ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <>
+              <Check className="mr-1.5 h-3.5 w-3.5" />
+              Aprovar Post
+            </>
           )}
-        </p>
-        {post.status === "pending" && (
-          <Button
-            onClick={onApprove}
-            disabled={approving}
-            size="sm"
-            className="w-full bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] text-primary-foreground shadow-[0_8px_24px_-10px_oklch(0.42_0.22_305/0.7)] transition-transform hover:scale-[1.02]"
-          >
-            {approving ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <>
-                <Check className="mr-1.5 h-3.5 w-3.5" />
-                Aprovar Post
-              </>
-            )}
-          </Button>
-        )}
-        {post.status === "approved" && (
-          <div className="flex items-center justify-center gap-1.5 rounded-md bg-mint/10 py-1.5 text-[11px] font-medium text-mint">
-            <Sparkles className="h-3 w-3" />
-            Aguardando publicação
-          </div>
-        )}
-      </div>
+        </Button>
+      )}
+      {post.status === "approved" && (
+        <div className="flex items-center justify-center gap-1.5 rounded-md bg-mint/10 py-1.5 text-[11px] font-medium text-mint">
+          <Sparkles className="h-3 w-3" />
+          Aguardando publicação
+        </div>
+      )}
     </article>
   );
 }

@@ -39,6 +39,7 @@ function DashboardPage() {
   const [section, setSection] = useState<PortalSection>("reports");
   const [active, setActive] = useState<ReportSource>("overview");
   const [reports, setReports] = useState<ReportRow[]>([]);
+  const [profile, setProfile] = useState<{ full_name: string; company: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
 
@@ -68,6 +69,15 @@ function DashboardPage() {
         if (cancelled) return;
         setReports((data ?? []) as unknown as ReportRow[]);
         setLoading(false);
+      });
+    supabase
+      .from("profiles")
+      .select("full_name, company")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (data) setProfile(data);
       });
     return () => {
       cancelled = true;
@@ -245,7 +255,12 @@ function DashboardPage() {
               </div>
             ))}
 
-          {section === "calendar" && <ClientCalendarView clientId={user.id} />}
+          {section === "calendar" && (
+            <ClientCalendarView
+              clientId={user.id}
+              clientName={profile?.company || profile?.full_name}
+            />
+          )}
           {section === "finance" && <ClientFinanceView clientId={user.id} />}
         </main>
       </div>

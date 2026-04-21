@@ -7,6 +7,7 @@ import { PortalSidebar } from "@/components/PortalSidebar";
 import { MetricCard } from "@/components/MetricCard";
 import { ClientCalendarView } from "@/components/ClientCalendarView";
 import { ClientFinanceView } from "@/components/ClientFinanceView";
+import { SocialReportView } from "@/components/SocialReportView";
 import { SOURCES, type ReportSource } from "@/lib/sources";
 import { METRICS_BY_SOURCE, formatMetricValue } from "@/lib/metrics";
 import { PORTAL_SECTIONS, type PortalSection } from "@/lib/portal-sections";
@@ -26,6 +27,10 @@ interface ReportRow {
   source: ReportSource;
   iframe_url: string | null;
   metrics: Record<string, string> | null;
+  previous_metrics?: Record<string, string> | null;
+  period_start?: string | null;
+  period_end?: string | null;
+  time_series?: Array<Record<string, string | number>> | null;
 }
 
 function DashboardPage() {
@@ -55,7 +60,9 @@ function DashboardPage() {
     setLoading(true);
     supabase
       .from("client_reports")
-      .select("source, iframe_url, metrics")
+      .select(
+        "source, iframe_url, metrics, previous_metrics, period_start, period_end, time_series",
+      )
       .eq("client_id", user.id)
       .then(({ data }) => {
         if (cancelled) return;

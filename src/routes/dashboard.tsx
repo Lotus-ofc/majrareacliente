@@ -39,6 +39,7 @@ function DashboardPage() {
   const [section, setSection] = useState<PortalSection>("reports");
   const [active, setActive] = useState<ReportSource>("overview");
   const [reports, setReports] = useState<ReportRow[]>([]);
+  const [profile, setProfile] = useState<{ full_name: string; company: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
 

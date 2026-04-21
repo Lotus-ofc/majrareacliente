@@ -22,7 +22,11 @@ export type Database = {
           iframe_url: string | null
           metrics: Json
           pdf_path: string | null
+          period_end: string | null
+          period_start: string | null
+          previous_metrics: Json
           source: Database["public"]["Enums"]["report_source"]
+          time_series: Json
           updated_at: string
         }
         Insert: {
@@ -32,7 +36,11 @@ export type Database = {
           iframe_url?: string | null
           metrics?: Json
           pdf_path?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          previous_metrics?: Json
           source: Database["public"]["Enums"]["report_source"]
+          time_series?: Json
           updated_at?: string
         }
         Update: {
@@ -42,7 +50,11 @@ export type Database = {
           iframe_url?: string | null
           metrics?: Json
           pdf_path?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          previous_metrics?: Json
           source?: Database["public"]["Enums"]["report_source"]
+          time_series?: Json
           updated_at?: string
         }
         Relationships: []

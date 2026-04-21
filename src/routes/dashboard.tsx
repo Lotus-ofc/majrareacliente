@@ -142,16 +142,92 @@ function DashboardPage() {
                 </div>
               </div>
             ) : hasAnyMetric ? (
-              <div className="grid grid-cols-1 gap-4 fade-in sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {metricDefs.map((m) => (
-                  <MetricCard
-                    key={m.key}
-                    label={m.label}
-                    value={formatMetricValue(metricValues[m.key], m.format)}
-                    Icon={m.icon}
-                  />
-                ))}
-              </div>
+              active === "instagram_organic" && current ? (
+                <SocialReportView
+                  data={{
+                    metrics: metricValues,
+                    previous_metrics: current.previous_metrics ?? null,
+                    period_start: current.period_start ?? null,
+                    period_end: current.period_end ?? null,
+                    time_series: current.time_series ?? null,
+                  }}
+                  metricDefs={metricDefs}
+                  sections={[
+                    {
+                      title: "Resumo geral",
+                      keys: ["reach", "views", "engagement", "engagement_rate", "frequency", "interactions"],
+                    },
+                    {
+                      title: "Detalhamento de interações",
+                      keys: ["likes", "comments", "shares", "saves", "profile_link_clicks"],
+                    },
+                    {
+                      title: "Seguidores",
+                      keys: ["followers_total", "new_followers", "growth_rate"],
+                    },
+                    {
+                      title: "Reels",
+                      keys: ["reels_total", "reels_views_total", "reels_views_avg"],
+                    },
+                    {
+                      title: "Posts no feed",
+                      keys: ["posts_total", "posts_interactions_total"],
+                    },
+                    {
+                      title: "Stories",
+                      keys: ["stories_total", "stories_views_total"],
+                    },
+                  ]}
+                  interactionPieKeys={["likes", "comments", "shares", "saves", "profile_link_clicks"]}
+                  seriesKeys={["reach", "interactions", "followers_total", "views"]}
+                  comparisonKeys={["reach", "interactions", "followers_total", "engagement"]}
+                  gaugeKeys={["engagement_rate", "growth_rate"]}
+                />
+              ) : active === "tiktok_organic" && current ? (
+                <SocialReportView
+                  data={{
+                    metrics: metricValues,
+                    previous_metrics: current.previous_metrics ?? null,
+                    period_start: current.period_start ?? null,
+                    period_end: current.period_end ?? null,
+                    time_series: current.time_series ?? null,
+                  }}
+                  metricDefs={metricDefs}
+                  sections={[
+                    {
+                      title: "Resumo geral",
+                      keys: ["video_views_total", "profile_views", "likes", "comments", "shares", "videos_total", "posts_total", "following"],
+                    },
+                    {
+                      title: "Seguidores",
+                      keys: ["followers_total", "new_followers", "growth_rate"],
+                    },
+                    {
+                      title: "Engajamento",
+                      keys: ["engagement_rate", "interactions_total", "interactions_avg_per_post"],
+                    },
+                    {
+                      title: "Performance de vídeos",
+                      keys: ["video_views_avg_per_post", "avg_watch_time", "watched_full_rate"],
+                    },
+                  ]}
+                  interactionPieKeys={["likes", "comments", "shares"]}
+                  seriesKeys={["video_views_total", "interactions_total", "followers_total", "profile_views"]}
+                  comparisonKeys={["video_views_total", "interactions_total", "followers_total", "profile_views"]}
+                  gaugeKeys={["engagement_rate", "watched_full_rate", "growth_rate"]}
+                />
+              ) : (
+                <div className="grid grid-cols-1 gap-4 fade-in sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {metricDefs.map((m) => (
+                    <MetricCard
+                      key={m.key}
+                      label={m.label}
+                      value={formatMetricValue(metricValues[m.key], m.format)}
+                      Icon={m.icon}
+                    />
+                  ))}
+                </div>
+              )
             ) : (
               <div className="glass flex flex-1 items-center justify-center rounded-2xl py-24 fade-in">
                 <div className="max-w-sm px-6 text-center text-muted-foreground">

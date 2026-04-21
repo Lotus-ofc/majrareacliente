@@ -1,5 +1,6 @@
-// Parse a report PDF using Lovable AI and return extracted metrics
-// for a given report source. Admin-only.
+// Parse a report PDF using Lovable AI and return extracted metrics,
+// period (start/end dates), comparative previous-period metrics and a
+// daily time series for richer dashboard visualization. Admin-only.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -56,36 +57,29 @@ const METRICS: Record<
     { key: "cpc", label: "Custo por Clique (CPC)", format: "currency" },
   ],
   instagram_organic: [
-    // Resumo geral do perfil
     { key: "reach", label: "Alcance (contas alcançadas no período)", format: "number" },
     { key: "engagement", label: "Engajamento (total absoluto, não percentual)", format: "number" },
     { key: "engagement_rate", label: "Taxa de Engajamento (em %)", format: "percent" },
     { key: "frequency", label: "Frequência (média de vezes que o conteúdo apareceu por usuário)", format: "number" },
     { key: "views", label: "Visualizações totais do perfil/conteúdo", format: "number" },
     { key: "interactions", label: "Interações totais", format: "number" },
-    // Detalhamento de interações
     { key: "likes", label: "Curtidas (total)", format: "number" },
     { key: "comments", label: "Comentários (total)", format: "number" },
     { key: "shares", label: "Compartilhamentos (total)", format: "number" },
     { key: "saves", label: "Salvos (total)", format: "number" },
     { key: "profile_link_clicks", label: "Cliques em links do perfil", format: "number" },
-    // Seguidores
     { key: "followers_total", label: "Total atual de seguidores no fim do período", format: "number" },
     { key: "new_followers", label: "Novos Seguidores no período (Follow / crescimento absoluto)", format: "number" },
     { key: "growth_rate", label: "Taxa de Crescimento de seguidores (em %)", format: "percent" },
-    // Reels
     { key: "reels_total", label: "Total de Reels publicados no período", format: "number" },
     { key: "reels_views_total", label: "Visualizações totais somando todos os Reels", format: "number" },
     { key: "reels_views_avg", label: "Média de visualizações por Reel", format: "number" },
-    // Posts no feed
     { key: "posts_total", label: "Total de Posts no feed publicados no período", format: "number" },
     { key: "posts_interactions_total", label: "Total de interações somando todos os posts do feed", format: "number" },
-    // Stories
     { key: "stories_total", label: "Total de Stories publicados no período", format: "number" },
     { key: "stories_views_total", label: "Visualizações totais somando todos os Stories", format: "number" },
   ],
   tiktok_organic: [
-    // Resumo geral do perfil
     { key: "likes", label: "Curtidas (total no período)", format: "number" },
     { key: "comments", label: "Comentários (total no período)", format: "number" },
     { key: "shares", label: "Compartilhamentos (total no período)", format: "number" },
@@ -94,19 +88,23 @@ const METRICS: Record<
     { key: "following", label: "Seguindo (quantos perfis a conta segue)", format: "number" },
     { key: "videos_total", label: "Total de Vídeos publicados no período", format: "number" },
     { key: "posts_total", label: "Total de Posts publicados no período", format: "number" },
-    // Seguidores
     { key: "followers_total", label: "Total atual de Seguidores no fim do período", format: "number" },
     { key: "new_followers", label: "Novos Seguidores no período (crescimento absoluto)", format: "number" },
     { key: "growth_rate", label: "Taxa de Crescimento de seguidores (em %)", format: "percent" },
-    // Engajamento
     { key: "engagement_rate", label: "Taxa de Engajamento Geral (em %)", format: "percent" },
     { key: "interactions_total", label: "Total de Interações somando todos os posts", format: "number" },
     { key: "interactions_avg_per_post", label: "Média de Interações por Post", format: "number" },
-    // Vídeos
     { key: "video_views_avg_per_post", label: "Média de Visualizações por Post/Vídeo", format: "number" },
     { key: "avg_watch_time", label: "Tempo Médio de Visualização em segundos (apenas o número, ex: 3.3 para 3,3s)", format: "number" },
     { key: "watched_full_rate", label: "Taxa Média de quem Assistiu o Vídeo até o Fim (em %)", format: "percent" },
   ],
+};
+
+// Métricas-chave para alimentar a série temporal (gráficos de linha) por aba.
+// O modelo só gerará time_series se a aba for organic (Instagram / TikTok).
+const TIME_SERIES_KEYS: Partial<Record<ReportSource, string[]>> = {
+  instagram_organic: ["reach", "interactions", "followers_total", "views"],
+  tiktok_organic: ["video_views_total", "interactions_total", "followers_total", "profile_views"],
 };
 
 Deno.serve(async (req) => {
@@ -122,7 +120,6 @@ Deno.serve(async (req) => {
       return json({ error: "LOVABLE_API_KEY ausente" }, 500);
     }
 
-    // Verify caller is an admin
     const authHeader = req.headers.get("Authorization") ?? "";
     const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
@@ -148,7 +145,6 @@ Deno.serve(async (req) => {
     }
     if (!METRICS[source]) return json({ error: "source inválido" }, 400);
 
-    // Download PDF from storage
     const { data: file, error: dlErr } = await admin.storage
       .from("report-pdfs")
       .download(pdf_path);
@@ -157,7 +153,6 @@ Deno.serve(async (req) => {
     }
 
     const buf = new Uint8Array(await file.arrayBuffer());
-    // Base64 encode
     let binary = "";
     const chunkSize = 0x8000;
     for (let i = 0; i < buf.length; i += chunkSize) {
@@ -166,19 +161,87 @@ Deno.serve(async (req) => {
     const base64 = btoa(binary);
     const dataUrl = `data:application/pdf;base64,${base64}`;
 
-    // Build tool schema for the requested source
     const defs = METRICS[source];
-    const properties: Record<string, { type: string; description: string }> = {};
+    const seriesKeys = TIME_SERIES_KEYS[source] ?? [];
+    const wantsSeries = seriesKeys.length > 0;
+
+    // Build properties: current metrics + previous-period metrics (same keys) + period dates + optional time series
+    const metricProps: Record<string, { type: string; description: string }> = {};
+    const previousProps: Record<string, { type: string; description: string }> = {};
     defs.forEach((d) => {
-      properties[d.key] = {
+      metricProps[d.key] = {
         type: "string",
-        description: `${d.label}. Formato: ${d.format}. Retorne apenas o número (ou texto, se 'text'). Use ponto como separador decimal. Se a métrica não estiver no PDF, retorne string vazia "".`,
+        description: `${d.label}. Formato: ${d.format}. Apenas o número (ponto como decimal). "" se ausente.`,
+      };
+      previousProps[d.key] = {
+        type: "string",
+        description: `Mesma métrica "${d.label}" referente ao PERÍODO ANTERIOR comparativo (se o PDF mostrar comparação/variação). "" se não houver.`,
       };
     });
 
-    const systemPrompt = `Você é um analista de marketing digital especialista em extrair métricas de relatórios PDF do mLabs e similares. Leia o PDF anexado e extraia APENAS as métricas referentes à seção/aba solicitada. Se uma métrica não aparecer claramente, retorne string vazia "" — NÃO invente valores. Para valores monetários (currency) retorne apenas o número (ex: "12500.50" para R$ 12.500,50). Para percentuais retorne apenas o número (ex: "4.75" para 4,75%).`;
+    const parameters: Record<string, unknown> = {
+      type: "object",
+      properties: {
+        period_start: {
+          type: "string",
+          description:
+            'Data inicial do período do relatório no formato ISO YYYY-MM-DD. Procure por textos como "Período: 01/03/2025 a 31/03/2025" ou similares. "" se não encontrar.',
+        },
+        period_end: {
+          type: "string",
+          description: 'Data final do período do relatório no formato ISO YYYY-MM-DD. "" se não encontrar.',
+        },
+        metrics: {
+          type: "object",
+          description: "Métricas do período atual extraídas do PDF.",
+          properties: metricProps,
+          required: defs.map((d) => d.key),
+          additionalProperties: false,
+        },
+        previous_metrics: {
+          type: "object",
+          description:
+            "Métricas do PERÍODO ANTERIOR para comparação 'antes vs depois'. Apenas se o PDF mostrar comparativo (variação % ou valor anterior). Use as mesmas chaves.",
+          properties: previousProps,
+          required: defs.map((d) => d.key),
+          additionalProperties: false,
+        },
+      },
+      required: ["period_start", "period_end", "metrics", "previous_metrics"],
+      additionalProperties: false,
+    };
 
-    const userPrompt = `Aba/Seção do relatório: ${source}\n\nExtraia as seguintes métricas do PDF:\n${defs.map((d) => `- ${d.key}: ${d.label} (${d.format})`).join("\n")}`;
+    if (wantsSeries) {
+      (parameters as { properties: Record<string, unknown> }).properties.time_series = {
+        type: "array",
+        description: `Série temporal DIÁRIA do período, se o PDF apresentar gráfico de linha por dia. Cada ponto deve conter "date" (YYYY-MM-DD) e os valores numéricos das métricas: ${seriesKeys.join(", ")}. Retorne array vazio [] se não houver dados diários.`,
+        items: {
+          type: "object",
+          properties: {
+            date: { type: "string", description: "Data ISO YYYY-MM-DD" },
+            ...Object.fromEntries(
+              seriesKeys.map((k) => [k, { type: "number", description: `Valor de ${k} no dia` }]),
+            ),
+          },
+          required: ["date"],
+          additionalProperties: false,
+        },
+      };
+      (parameters as { required: string[] }).required.push("time_series");
+    }
+
+    const systemPrompt = `Você é um analista de marketing digital especialista em extrair dados estruturados de relatórios PDF do mLabs e plataformas similares (Instagram, TikTok, Meta Ads, Google Ads, GA4).
+
+REGRAS CRÍTICAS:
+1. Leia TODAS as páginas do PDF anexado.
+2. Identifique o PERÍODO do relatório (datas de início e fim) — geralmente aparece no topo, em frases como "Período: 01/03/2025 a 31/03/2025" ou "01 mar 2025 - 31 mar 2025".
+3. Extraia as métricas do PERÍODO ATUAL.
+4. Se o PDF mostrar COMPARAÇÃO com período anterior (setas de variação %, "vs período anterior", "anterior: X"), extraia também os valores do período anterior em previous_metrics.
+5. Se houver gráfico DIÁRIO de linha no PDF, extraia a série temporal ponto a ponto em time_series.
+6. NUNCA invente valores. Se não encontrar uma métrica, retorne string vazia "".
+7. Para currency e percent retorne APENAS o número (ex: "12500.50", "4.75"). Use ponto como decimal.`;
+
+    const userPrompt = `Aba/Seção do relatório: ${source}\n\nMétricas a extrair:\n${defs.map((d) => `- ${d.key}: ${d.label} (${d.format})`).join("\n")}${wantsSeries ? `\n\nSérie temporal diária esperada (se houver gráfico): ${seriesKeys.join(", ")}` : ""}`;
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -202,18 +265,13 @@ Deno.serve(async (req) => {
           {
             type: "function",
             function: {
-              name: "save_metrics",
-              description: "Salva as métricas extraídas do PDF para a aba solicitada.",
-              parameters: {
-                type: "object",
-                properties,
-                required: defs.map((d) => d.key),
-                additionalProperties: false,
-              },
+              name: "save_report",
+              description: "Salva o relatório completo extraído do PDF.",
+              parameters,
             },
           },
         ],
-        tool_choice: { type: "function", function: { name: "save_metrics" } },
+        tool_choice: { type: "function", function: { name: "save_report" } },
       }),
     });
 
@@ -232,25 +290,44 @@ Deno.serve(async (req) => {
     const aiData = await aiResp.json();
     const toolCall = aiData?.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) {
-      return json({ error: "IA não retornou métricas estruturadas" }, 500);
+      return json({ error: "IA não retornou dados estruturados" }, 500);
     }
-    const args = JSON.parse(toolCall.function.arguments) as Record<string, string>;
+    const args = JSON.parse(toolCall.function.arguments) as {
+      period_start?: string;
+      period_end?: string;
+      metrics?: Record<string, string>;
+      previous_metrics?: Record<string, string>;
+      time_series?: Array<Record<string, string | number>>;
+    };
 
-    // Filter only known keys + non-empty
-    const cleaned: Record<string, string> = {};
+    const cleanedMetrics: Record<string, string> = {};
+    const cleanedPrev: Record<string, string> = {};
     defs.forEach((d) => {
-      const v = (args[d.key] ?? "").toString().trim();
-      if (v) cleaned[d.key] = v;
+      const v = (args.metrics?.[d.key] ?? "").toString().trim();
+      if (v) cleanedMetrics[d.key] = v;
+      const p = (args.previous_metrics?.[d.key] ?? "").toString().trim();
+      if (p) cleanedPrev[d.key] = p;
     });
 
-    // Persist: update metrics and pdf_path on client_reports (upsert)
+    const isDate = (s?: string) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+    const period_start = isDate(args.period_start) ? args.period_start! : null;
+    const period_end = isDate(args.period_end) ? args.period_end! : null;
+
+    const time_series = Array.isArray(args.time_series)
+      ? args.time_series.filter((p) => typeof p?.date === "string")
+      : [];
+
     const { error: upsertErr } = await admin
       .from("client_reports")
       .upsert(
         {
           client_id,
           source,
-          metrics: cleaned,
+          metrics: cleanedMetrics,
+          previous_metrics: cleanedPrev,
+          period_start,
+          period_end,
+          time_series,
           pdf_path,
         },
         { onConflict: "client_id,source", ignoreDuplicates: false },
@@ -258,10 +335,17 @@ Deno.serve(async (req) => {
 
     if (upsertErr) {
       console.error("upsert error", upsertErr);
-      return json({ error: `Erro ao salvar métricas: ${upsertErr.message}` }, 500);
+      return json({ error: `Erro ao salvar: ${upsertErr.message}` }, 500);
     }
 
-    return json({ metrics: cleaned, count: Object.keys(cleaned).length });
+    return json({
+      metrics: cleanedMetrics,
+      previous_metrics: cleanedPrev,
+      period_start,
+      period_end,
+      time_series,
+      count: Object.keys(cleanedMetrics).length,
+    });
   } catch (e) {
     console.error("parse-report-pdf error", e);
     return json({ error: e instanceof Error ? e.message : "Erro desconhecido" }, 500);

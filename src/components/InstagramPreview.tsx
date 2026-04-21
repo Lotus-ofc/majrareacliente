@@ -13,7 +13,7 @@ import {
   ImageOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import majrLogo from "@/assets/majr-logo.svg";
+import majrLogo from "@/assets/logo-majr.png";
 
 export type PostFormat = "single" | "carousel" | "reel";
 

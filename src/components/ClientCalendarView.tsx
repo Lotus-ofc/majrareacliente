@@ -291,7 +291,7 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
-          {(Object.keys(STATUS_META) as Post["status"][]).map((s) => (
+          {(Object.keys(STATUS_META) as RawPostStatus[]).map((s) => (
             <span key={s} className="flex items-center gap-1.5 text-muted-foreground">
               <span className={cn("h-2 w-2 rounded-full", STATUS_META[s].dot)} />
               {STATUS_META[s].label}
@@ -365,7 +365,7 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
 
                 <div className="space-y-1">
                   {dayPosts.slice(0, 3).map((p) => {
-                    const meta = STATUS_META[p.status];
+                    const meta = STATUS_META[getDisplayStatus(p.status, p.scheduled_date, p.scheduled_time, now)];
                     const fmt = FORMAT_META[p.post_format];
                     const FmtIcon = fmt.icon;
                     return (
@@ -410,7 +410,7 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
           </p>
         ) : (
           monthPosts.map((p) => {
-            const meta = STATUS_META[p.status];
+            const meta = STATUS_META[getDisplayStatus(p.status, p.scheduled_date, p.scheduled_time, now)];
             const fmt = FORMAT_META[p.post_format];
             const FmtIcon = fmt.icon;
             const isToday = p.scheduled_date === todayKey;
@@ -542,7 +542,7 @@ function DayPostsModal({
         </div>
         <div className="space-y-2">
           {posts.map((p) => {
-            const meta = STATUS_META[p.status];
+            const meta = STATUS_META[p.status]; // selection list — show raw stored status
             const fmt = FORMAT_META[p.post_format];
             const FmtIcon = fmt.icon;
             return (

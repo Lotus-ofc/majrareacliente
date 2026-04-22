@@ -716,6 +716,11 @@ export function ManagePostsDialog({
                             )}
                           </span>
                         </div>
+                        {p.title && (
+                          <p className="mt-1 truncate text-sm font-semibold text-foreground">
+                            {p.title}
+                          </p>
+                        )}
                         <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-foreground/90">
                           {p.caption || (
                             <span className="italic text-muted-foreground">Sem legenda</span>

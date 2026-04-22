@@ -476,7 +476,7 @@ export function ManagePostsDialog({
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label className="text-xs">Data programada</Label>
                 <Input
@@ -486,6 +486,19 @@ export function ManagePostsDialog({
                     setForm((f) => ({ ...f, scheduled_date: e.target.value }))
                   }
                 />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Hora</Label>
+                <Input
+                  type="time"
+                  value={form.scheduled_time}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, scheduled_time: e.target.value }))
+                  }
+                />
+                <p className="text-[10.5px] text-muted-foreground">
+                  Quando bater data + hora, o post vira "Publicado".
+                </p>
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">Status</Label>

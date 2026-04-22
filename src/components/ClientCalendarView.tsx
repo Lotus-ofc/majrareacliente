@@ -11,23 +11,34 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Clock,
+  Pencil,
+  Send,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { InstagramPreview, type PostFormat } from "./InstagramPreview";
+import { formatTimeBR, getDisplayStatus, type RawPostStatus } from "@/lib/post-status";
+
+type CaptionChangeStatus = "none" | "pending" | "rejected";
 
 interface Post {
   id: string;
   scheduled_date: string;
+  scheduled_time: string;
   title: string;
   image_url: string | null;
   media_urls: string[];
   post_format: PostFormat;
   caption: string;
-  status: "pending" | "approved" | "published";
+  pending_caption: string | null;
+  caption_change_status: CaptionChangeStatus;
+  status: RawPostStatus;
 }
 
 const STATUS_META: Record<Post["status"], { label: string; cls: string; dot: string }> = {

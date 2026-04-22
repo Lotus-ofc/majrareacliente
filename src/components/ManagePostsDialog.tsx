@@ -352,6 +352,7 @@ export function ManagePostsDialog({
     const payload = {
       client_id: clientId,
       scheduled_date: form.scheduled_date,
+      scheduled_time: form.scheduled_time.length === 5 ? `${form.scheduled_time}:00` : form.scheduled_time,
       title: form.title,
       image_url: form.media_urls[0] ?? null, // legacy compat
       media_urls: form.media_urls,

@@ -430,7 +430,7 @@ function ModalShell({
       <div
         className={cn(
           "glass-strong relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-2xl",
-          size === "sm" ? "max-w-md" : "max-w-2xl",
+          size === "sm" ? "max-w-md" : "max-w-[480px]",
         )}
         style={{
           background:

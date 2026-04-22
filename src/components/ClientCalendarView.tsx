@@ -104,15 +104,36 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
   });
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  // Tick every minute so "Publicado" auto-flips when the scheduled time passes
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const fetchPosts = async () => {
     const { data } = await supabase
       .from("editorial_posts")
-      .select("id, scheduled_date, title, image_url, media_urls, post_format, caption, status")
+      .select(
+        "id, scheduled_date, scheduled_time, title, image_url, media_urls, post_format, caption, pending_caption, caption_change_status, status",
+      )
       .eq("client_id", clientId)
       .order("scheduled_date", { ascending: true });
 
-    const normalized = (data ?? []).map((p: { id: string; scheduled_date: string; title?: string | null; image_url: string | null; media_urls: unknown; post_format: string | null; caption: string; status: string }) => {
+    const normalized = (data ?? []).map((p: {
+      id: string;
+      scheduled_date: string;
+      scheduled_time?: string | null;
+      title?: string | null;
+      image_url: string | null;
+      media_urls: unknown;
+      post_format: string | null;
+      caption: string;
+      pending_caption?: string | null;
+      caption_change_status?: string | null;
+      status: string;
+    }) => {
       const mu = Array.isArray(p.media_urls)
         ? (p.media_urls as unknown[]).filter(
             (u): u is string => typeof u === "string" && u.length > 0,
@@ -122,12 +143,15 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
       return {
         id: p.id,
         scheduled_date: p.scheduled_date,
+        scheduled_time: p.scheduled_time ?? "09:00:00",
         title: p.title ?? "",
         image_url: p.image_url,
         media_urls: finalMedia,
         post_format: (p.post_format ?? "single") as PostFormat,
         caption: p.caption,
-        status: p.status as Post["status"],
+        pending_caption: p.pending_caption ?? null,
+        caption_change_status: (p.caption_change_status ?? "none") as CaptionChangeStatus,
+        status: p.status as RawPostStatus,
       } as Post;
     });
     setPosts(normalized);
@@ -150,11 +174,41 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
       toast.error("Falha ao aprovar", { description: error.message });
       return;
     }
-    toast.success("Post aprovado!");
+    toast.success("Post aprovado! Agora está agendado.");
     setPosts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, status: "approved" } : p)),
     );
     setSelectedPost((cur) => (cur && cur.id === id ? { ...cur, status: "approved" } : cur));
+  };
+
+  const proposeCaption = async (id: string, newCaption: string) => {
+    const { error } = await supabase
+      .from("editorial_posts")
+      .update({
+        pending_caption: newCaption,
+        caption_change_status: "pending",
+      })
+      .eq("id", id);
+    if (error) {
+      toast.error("Falha ao enviar sugestão", { description: error.message });
+      return false;
+    }
+    toast.success("Sugestão enviada", {
+      description: "Aguardando aprovação do administrador.",
+    });
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, pending_caption: newCaption, caption_change_status: "pending" }
+          : p,
+      ),
+    );
+    setSelectedPost((cur) =>
+      cur && cur.id === id
+        ? { ...cur, pending_caption: newCaption, caption_change_status: "pending" }
+        : cur,
+    );
+    return true;
   };
 
   // Build month grid (6 rows x 7 cols)

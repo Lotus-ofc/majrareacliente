@@ -11,26 +11,37 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Clock,
+  Pencil,
+  Send,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { InstagramPreview, type PostFormat } from "./InstagramPreview";
+import { formatTimeBR, getDisplayStatus, type RawPostStatus } from "@/lib/post-status";
+
+type CaptionChangeStatus = "none" | "pending" | "rejected";
 
 interface Post {
   id: string;
   scheduled_date: string;
+  scheduled_time: string;
   title: string;
   image_url: string | null;
   media_urls: string[];
   post_format: PostFormat;
   caption: string;
-  status: "pending" | "approved" | "published";
+  pending_caption: string | null;
+  caption_change_status: CaptionChangeStatus;
+  status: RawPostStatus;
 }
 
-const STATUS_META: Record<Post["status"], { label: string; cls: string; dot: string }> = {
+const STATUS_META: Record<RawPostStatus, { label: string; cls: string; dot: string }> = {
   pending: {
     label: "Em Aprovação",
     cls: "bg-[oklch(0.78_0.14_55/0.18)] text-[oklch(0.85_0.14_70)] border border-[oklch(0.78_0.14_55/0.4)]",
@@ -93,15 +104,36 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
   });
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  // Tick every minute so "Publicado" auto-flips when the scheduled time passes
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const fetchPosts = async () => {
     const { data } = await supabase
       .from("editorial_posts")
-      .select("id, scheduled_date, title, image_url, media_urls, post_format, caption, status")
+      .select(
+        "id, scheduled_date, scheduled_time, title, image_url, media_urls, post_format, caption, pending_caption, caption_change_status, status",
+      )
       .eq("client_id", clientId)
       .order("scheduled_date", { ascending: true });
 
-    const normalized = (data ?? []).map((p: { id: string; scheduled_date: string; title?: string | null; image_url: string | null; media_urls: unknown; post_format: string | null; caption: string; status: string }) => {
+    const normalized = (data ?? []).map((p: {
+      id: string;
+      scheduled_date: string;
+      scheduled_time?: string | null;
+      title?: string | null;
+      image_url: string | null;
+      media_urls: unknown;
+      post_format: string | null;
+      caption: string;
+      pending_caption?: string | null;
+      caption_change_status?: string | null;
+      status: string;
+    }) => {
       const mu = Array.isArray(p.media_urls)
         ? (p.media_urls as unknown[]).filter(
             (u): u is string => typeof u === "string" && u.length > 0,
@@ -111,12 +143,15 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
       return {
         id: p.id,
         scheduled_date: p.scheduled_date,
+        scheduled_time: p.scheduled_time ?? "09:00:00",
         title: p.title ?? "",
         image_url: p.image_url,
         media_urls: finalMedia,
         post_format: (p.post_format ?? "single") as PostFormat,
         caption: p.caption,
-        status: p.status as Post["status"],
+        pending_caption: p.pending_caption ?? null,
+        caption_change_status: (p.caption_change_status ?? "none") as CaptionChangeStatus,
+        status: p.status as RawPostStatus,
       } as Post;
     });
     setPosts(normalized);
@@ -139,11 +174,41 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
       toast.error("Falha ao aprovar", { description: error.message });
       return;
     }
-    toast.success("Post aprovado!");
+    toast.success("Post aprovado! Agora está agendado.");
     setPosts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, status: "approved" } : p)),
     );
     setSelectedPost((cur) => (cur && cur.id === id ? { ...cur, status: "approved" } : cur));
+  };
+
+  const proposeCaption = async (id: string, newCaption: string) => {
+    const { error } = await supabase
+      .from("editorial_posts")
+      .update({
+        pending_caption: newCaption,
+        caption_change_status: "pending",
+      })
+      .eq("id", id);
+    if (error) {
+      toast.error("Falha ao enviar sugestão", { description: error.message });
+      return false;
+    }
+    toast.success("Sugestão enviada", {
+      description: "Aguardando aprovação do administrador.",
+    });
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, pending_caption: newCaption, caption_change_status: "pending" }
+          : p,
+      ),
+    );
+    setSelectedPost((cur) =>
+      cur && cur.id === id
+        ? { ...cur, pending_caption: newCaption, caption_change_status: "pending" }
+        : cur,
+    );
+    return true;
   };
 
   // Build month grid (6 rows x 7 cols)
@@ -226,7 +291,7 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
-          {(Object.keys(STATUS_META) as Post["status"][]).map((s) => (
+          {(Object.keys(STATUS_META) as RawPostStatus[]).map((s) => (
             <span key={s} className="flex items-center gap-1.5 text-muted-foreground">
               <span className={cn("h-2 w-2 rounded-full", STATUS_META[s].dot)} />
               {STATUS_META[s].label}
@@ -300,7 +365,7 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
 
                 <div className="space-y-1">
                   {dayPosts.slice(0, 3).map((p) => {
-                    const meta = STATUS_META[p.status];
+                    const meta = STATUS_META[getDisplayStatus(p.status, p.scheduled_date, p.scheduled_time, now)];
                     const fmt = FORMAT_META[p.post_format];
                     const FmtIcon = fmt.icon;
                     return (
@@ -316,6 +381,9 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
                         )}
                       >
                         <FmtIcon className="h-2.5 w-2.5 shrink-0 opacity-80" />
+                        <span className="shrink-0 font-mono text-[9.5px] opacity-70">
+                          {formatTimeBR(p.scheduled_time)}
+                        </span>
                         <span className="flex-1 truncate font-medium">
                           {p.title || p.caption.slice(0, 28) || "Sem título"}
                         </span>
@@ -345,7 +413,7 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
           </p>
         ) : (
           monthPosts.map((p) => {
-            const meta = STATUS_META[p.status];
+            const meta = STATUS_META[getDisplayStatus(p.status, p.scheduled_date, p.scheduled_time, now)];
             const fmt = FORMAT_META[p.post_format];
             const FmtIcon = fmt.icon;
             const isToday = p.scheduled_date === todayKey;
@@ -374,9 +442,15 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
                       {p.title || p.caption.slice(0, 40) || "Sem título"}
                     </p>
                   </div>
-                  <Badge className={cn("mt-1 rounded-full px-2 py-0 text-[9px]", meta.cls)}>
-                    {meta.label}
-                  </Badge>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <Badge className={cn("rounded-full px-2 py-0 text-[9px]", meta.cls)}>
+                      {meta.label}
+                    </Badge>
+                    <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <Clock className="h-2.5 w-2.5" />
+                      {formatTimeBR(p.scheduled_time)}
+                    </span>
+                  </div>
                 </div>
               </button>
             );
@@ -402,8 +476,10 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
         <PostDetailModal
           post={selectedPost}
           username={username}
+          now={now}
           onClose={() => setSelectedPost(null)}
           onApprove={() => approve(selectedPost.id)}
+          onProposeCaption={(text) => proposeCaption(selectedPost.id, text)}
           approving={approvingId === selectedPost.id}
         />
       )}
@@ -477,7 +553,7 @@ function DayPostsModal({
         </div>
         <div className="space-y-2">
           {posts.map((p) => {
-            const meta = STATUS_META[p.status];
+            const meta = STATUS_META[p.status]; // selection list — show raw stored status
             const fmt = FORMAT_META[p.post_format];
             const FmtIcon = fmt.icon;
             return (
@@ -510,19 +586,48 @@ function DayPostsModal({
 function PostDetailModal({
   post,
   username,
+  now,
   onClose,
   onApprove,
+  onProposeCaption,
   approving,
 }: {
   post: Post;
   username: string;
+  now: Date;
   onClose: () => void;
   onApprove: () => void;
+  onProposeCaption: (text: string) => Promise<boolean>;
   approving: boolean;
 }) {
-  const meta = STATUS_META[post.status];
+  const displayStatus = getDisplayStatus(post.status, post.scheduled_date, post.scheduled_time, now);
+  const meta = STATUS_META[displayStatus];
   const fmt = FORMAT_META[post.post_format];
   const FmtIcon = fmt.icon;
+
+  const [editing, setEditing] = useState(false);
+  const [draftCaption, setDraftCaption] = useState(post.caption);
+  const [submittingCaption, setSubmittingCaption] = useState(false);
+
+  // Sync draft when switching posts
+  useEffect(() => {
+    setDraftCaption(post.caption);
+    setEditing(false);
+  }, [post.id, post.caption]);
+
+  const captionPending = post.caption_change_status === "pending";
+  const captionRejected = post.caption_change_status === "rejected";
+
+  const submitCaption = async () => {
+    if (draftCaption.trim() === post.caption.trim()) {
+      toast.info("Nenhuma alteração detectada");
+      return;
+    }
+    setSubmittingCaption(true);
+    const ok = await onProposeCaption(draftCaption);
+    setSubmittingCaption(false);
+    if (ok) setEditing(false);
+  };
 
   return (
     <ModalShell onClose={onClose}>
@@ -537,9 +642,15 @@ function PostDetailModal({
             <Badge className={cn("rounded-full px-2 py-0 text-[10px]", meta.cls)}>
               {meta.label}
             </Badge>
-            <span className="ml-auto inline-flex items-center gap-1 text-[11px] uppercase tracking-wider text-muted-foreground">
-              <CalendarDays className="h-3 w-3" />
-              {formatDateBR(post.scheduled_date)}
+            <span className="ml-auto inline-flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <CalendarDays className="h-3 w-3" />
+                {formatDateBR(post.scheduled_date)}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {formatTimeBR(post.scheduled_time)}
+              </span>
             </span>
           </div>
           {post.title && (
@@ -578,30 +689,120 @@ function PostDetailModal({
               )}
             </Button>
           )}
-          {post.status === "approved" && (
+          {displayStatus === "approved" && (
             <div className="flex items-center justify-center gap-2 rounded-xl bg-mint/10 py-2.5 text-sm font-medium text-mint">
               <Sparkles className="h-4 w-4" />
-              Aguardando publicação
+              Agendado para {formatDateBR(post.scheduled_date)} às {formatTimeBR(post.scheduled_time)}
             </div>
           )}
-          {post.status === "published" && (
+          {displayStatus === "published" && (
             <div className="flex items-center justify-center gap-2 rounded-xl bg-primary/10 py-2.5 text-sm font-medium text-lilac">
               <Check className="h-4 w-4" />
-              Já publicado
+              Publicado
             </div>
           )}
 
-          {/* Legenda completa (caso o cliente queira ver formatada / copiar) */}
-          {post.caption && (
-            <details className="group rounded-xl border border-border bg-background/40">
-              <summary className="cursor-pointer list-none px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground">
-                Ver legenda completa
-              </summary>
-              <div className="max-h-[200px] overflow-y-auto whitespace-pre-wrap border-t border-border/60 px-3 py-3 text-sm leading-relaxed text-foreground">
-                {post.caption}
+          {/* Caption status banners */}
+          {captionPending && (
+            <div className="flex items-start gap-2 rounded-xl border border-[oklch(0.78_0.14_55/0.4)] bg-[oklch(0.78_0.14_55/0.12)] px-3 py-2.5 text-xs text-[oklch(0.85_0.14_70)]">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <div>
+                <p className="font-semibold">Sugestão de legenda enviada</p>
+                <p className="opacity-80">
+                  Aguardando o administrador revisar e aprovar a alteração.
+                </p>
               </div>
-            </details>
+            </div>
           )}
+          {captionRejected && (
+            <div className="flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">
+              <X className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <div>
+                <p className="font-semibold">Sugestão recusada</p>
+                <p className="opacity-80">
+                  O administrador não aprovou sua última sugestão. Você pode tentar novamente.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Legenda — leitura + edição */}
+          <div className="rounded-xl border border-border bg-background/40">
+            <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Legenda
+              </p>
+              {!editing && !captionPending && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-[11px]"
+                  onClick={() => setEditing(true)}
+                >
+                  <Pencil className="mr-1 h-3 w-3" />
+                  Sugerir alteração
+                </Button>
+              )}
+            </div>
+            {editing ? (
+              <div className="space-y-2 px-3 py-3">
+                <Textarea
+                  rows={6}
+                  value={draftCaption}
+                  onChange={(e) => setDraftCaption(e.target.value)}
+                  className="text-sm"
+                  placeholder="Reescreva a legenda como você gostaria…"
+                />
+                <p className="text-[10.5px] text-muted-foreground">
+                  Esta sugestão será enviada para aprovação do administrador. A legenda atual permanece visível até a aprovação.
+                </p>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setEditing(false);
+                      setDraftCaption(post.caption);
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={submitCaption}
+                    disabled={submittingCaption}
+                    className="bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)]"
+                  >
+                    {submittingCaption ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <>
+                        <Send className="mr-1 h-3 w-3" />
+                        Enviar para aprovação
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="max-h-[200px] overflow-y-auto whitespace-pre-wrap px-3 py-3 text-sm leading-relaxed text-foreground">
+                {post.caption || (
+                  <span className="italic text-muted-foreground">Sem legenda</span>
+                )}
+              </div>
+            )}
+            {/* Show pending suggestion preview for transparency */}
+            {captionPending && post.pending_caption && !editing && (
+              <div className="border-t border-border/60 bg-[oklch(0.78_0.14_55/0.06)] px-3 py-3">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[oklch(0.85_0.14_70)]">
+                  Sua sugestão (em análise)
+                </p>
+                <p className="max-h-[140px] overflow-y-auto whitespace-pre-wrap text-[12.5px] leading-relaxed text-foreground/90">
+                  {post.pending_caption}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </ModalShell>

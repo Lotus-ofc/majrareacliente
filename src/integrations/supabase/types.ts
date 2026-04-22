@@ -62,39 +62,48 @@ export type Database = {
       editorial_posts: {
         Row: {
           caption: string
+          caption_change_status: string
           client_id: string
           created_at: string
           id: string
           image_url: string | null
           media_urls: Json
+          pending_caption: string | null
           post_format: Database["public"]["Enums"]["post_format"]
           scheduled_date: string
+          scheduled_time: string
           status: Database["public"]["Enums"]["post_status"]
           title: string
           updated_at: string
         }
         Insert: {
           caption?: string
+          caption_change_status?: string
           client_id: string
           created_at?: string
           id?: string
           image_url?: string | null
           media_urls?: Json
+          pending_caption?: string | null
           post_format?: Database["public"]["Enums"]["post_format"]
           scheduled_date: string
+          scheduled_time?: string
           status?: Database["public"]["Enums"]["post_status"]
           title?: string
           updated_at?: string
         }
         Update: {
           caption?: string
+          caption_change_status?: string
           client_id?: string
           created_at?: string
           id?: string
           image_url?: string | null
           media_urls?: Json
+          pending_caption?: string | null
           post_format?: Database["public"]["Enums"]["post_format"]
           scheduled_date?: string
+          scheduled_time?: string
           status?: Database["public"]["Enums"]["post_status"]
           title?: string
           updated_at?: string

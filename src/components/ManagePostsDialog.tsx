@@ -35,21 +35,30 @@ import {
   Layers,
   Square,
   Smartphone,
+  Clock,
+  MessageSquareWarning,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateBR } from "@/lib/format";
 import { InstagramPreview, type PostFormat } from "./InstagramPreview";
+import { formatTimeBR } from "@/lib/post-status";
 
 type PostStatus = "pending" | "approved" | "published";
+type CaptionChangeStatus = "none" | "pending" | "rejected";
 
 interface Post {
   id: string;
   scheduled_date: string;
+  scheduled_time: string;
   title: string;
   image_url: string | null;
   media_urls: string[];
   post_format: PostFormat;
   caption: string;
+  pending_caption: string | null;
+  caption_change_status: CaptionChangeStatus;
   status: PostStatus;
 }
 
@@ -98,6 +107,7 @@ const FORMAT_OPTIONS: Array<{
 
 interface FormState {
   scheduled_date: string;
+  scheduled_time: string;
   title: string;
   media_urls: string[];
   post_format: PostFormat;
@@ -107,6 +117,7 @@ interface FormState {
 
 const emptyForm: FormState = {
   scheduled_date: new Date().toISOString().slice(0, 10),
+  scheduled_time: "09:00",
   title: "",
   media_urls: [],
   post_format: "single",
@@ -142,10 +153,24 @@ export function ManagePostsDialog({
     setLoading(true);
     const { data } = await supabase
       .from("editorial_posts")
-      .select("id, scheduled_date, title, image_url, media_urls, post_format, caption, status")
+      .select(
+        "id, scheduled_date, scheduled_time, title, image_url, media_urls, post_format, caption, pending_caption, caption_change_status, status",
+      )
       .eq("client_id", clientId)
       .order("scheduled_date", { ascending: true });
-    const normalized = (data ?? []).map((p: { id: string; scheduled_date: string; title?: string | null; image_url: string | null; media_urls: unknown; post_format: string | null; caption: string; status: string }) => {
+    const normalized = (data ?? []).map((p: {
+      id: string;
+      scheduled_date: string;
+      scheduled_time?: string | null;
+      title?: string | null;
+      image_url: string | null;
+      media_urls: unknown;
+      post_format: string | null;
+      caption: string;
+      pending_caption?: string | null;
+      caption_change_status?: string | null;
+      status: string;
+    }): Post => {
       const mu = Array.isArray(p.media_urls)
         ? (p.media_urls as unknown[]).filter(
             (u): u is string => typeof u === "string" && u.length > 0,
@@ -155,11 +180,14 @@ export function ManagePostsDialog({
       return {
         id: p.id,
         scheduled_date: p.scheduled_date,
+        scheduled_time: p.scheduled_time ?? "09:00:00",
         title: p.title ?? "",
         image_url: p.image_url,
         media_urls: finalMedia,
         post_format: (p.post_format ?? "single") as PostFormat,
         caption: p.caption,
+        pending_caption: p.pending_caption ?? null,
+        caption_change_status: (p.caption_change_status ?? "none") as CaptionChangeStatus,
         status: p.status as PostStatus,
       };
     });
@@ -176,12 +204,47 @@ export function ManagePostsDialog({
     setEditingId(p.id);
     setForm({
       scheduled_date: p.scheduled_date,
+      scheduled_time: formatTimeBR(p.scheduled_time),
       title: p.title,
       media_urls: p.media_urls,
       post_format: p.post_format,
       caption: p.caption,
       status: p.status,
     });
+  };
+
+  const approveCaptionChange = async (p: Post) => {
+    if (!p.pending_caption) return;
+    const { error } = await supabase
+      .from("editorial_posts")
+      .update({
+        caption: p.pending_caption,
+        pending_caption: null,
+        caption_change_status: "none",
+      })
+      .eq("id", p.id);
+    if (error) {
+      toast.error("Falha ao aprovar legenda", { description: error.message });
+      return;
+    }
+    toast.success("Legenda atualizada com a sugestão do cliente");
+    void fetchPosts();
+  };
+
+  const rejectCaptionChange = async (p: Post) => {
+    const { error } = await supabase
+      .from("editorial_posts")
+      .update({
+        pending_caption: null,
+        caption_change_status: "rejected",
+      })
+      .eq("id", p.id);
+    if (error) {
+      toast.error("Falha ao rejeitar", { description: error.message });
+      return;
+    }
+    toast.success("Sugestão rejeitada");
+    void fetchPosts();
   };
 
   const cancelEdit = () => {
@@ -289,6 +352,7 @@ export function ManagePostsDialog({
     const payload = {
       client_id: clientId,
       scheduled_date: form.scheduled_date,
+      scheduled_time: form.scheduled_time.length === 5 ? `${form.scheduled_time}:00` : form.scheduled_time,
       title: form.title,
       image_url: form.media_urls[0] ?? null, // legacy compat
       media_urls: form.media_urls,
@@ -412,7 +476,7 @@ export function ManagePostsDialog({
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label className="text-xs">Data programada</Label>
                 <Input
@@ -422,6 +486,19 @@ export function ManagePostsDialog({
                     setForm((f) => ({ ...f, scheduled_date: e.target.value }))
                   }
                 />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Hora</Label>
+                <Input
+                  type="time"
+                  value={form.scheduled_time}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, scheduled_time: e.target.value }))
+                  }
+                />
+                <p className="text-[10.5px] text-muted-foreground">
+                  Quando bater data + hora, o post vira "Publicado".
+                </p>
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">Status</Label>
@@ -697,8 +774,11 @@ export function ManagePostsDialog({
                       )}
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                             {formatDateBR(p.scheduled_date)}
+                            <span className="text-muted-foreground/60">·</span>
+                            <Clock className="h-3 w-3" />
+                            {formatTimeBR(p.scheduled_time)}
                           </span>
                           <Badge
                             className={cn(
@@ -715,6 +795,12 @@ export function ManagePostsDialog({
                               <span>· {p.media_urls.length}</span>
                             )}
                           </span>
+                          {p.caption_change_status === "pending" && (
+                            <Badge className="rounded-full border border-[oklch(0.78_0.14_55/0.4)] bg-[oklch(0.78_0.14_55/0.18)] px-2 py-0 text-[10px] text-[oklch(0.85_0.14_70)]">
+                              <MessageSquareWarning className="mr-1 h-3 w-3" />
+                              Sugestão de legenda
+                            </Badge>
+                          )}
                         </div>
                         {p.title && (
                           <p className="mt-1 truncate text-sm font-semibold text-foreground">
@@ -726,6 +812,40 @@ export function ManagePostsDialog({
                             <span className="italic text-muted-foreground">Sem legenda</span>
                           )}
                         </p>
+
+                        {/* Caption change suggestion review */}
+                        {p.caption_change_status === "pending" && p.pending_caption && (
+                          <div className="mt-2 rounded-lg border border-[oklch(0.78_0.14_55/0.4)] bg-[oklch(0.78_0.14_55/0.08)] p-2.5">
+                            <div className="mb-1.5 flex items-center justify-between gap-2">
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-[oklch(0.85_0.14_70)]">
+                                Cliente sugeriu nova legenda
+                              </p>
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 text-[10px] text-mint hover:bg-mint/10 hover:text-mint"
+                                  onClick={() => approveCaptionChange(p)}
+                                >
+                                  <ThumbsUp className="mr-1 h-3 w-3" />
+                                  Aprovar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                  onClick={() => rejectCaptionChange(p)}
+                                >
+                                  <ThumbsDown className="mr-1 h-3 w-3" />
+                                  Rejeitar
+                                </Button>
+                              </div>
+                            </div>
+                            <p className="max-h-[120px] overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-foreground/90">
+                              {p.pending_caption}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-1">

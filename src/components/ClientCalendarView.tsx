@@ -381,6 +381,9 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
                         )}
                       >
                         <FmtIcon className="h-2.5 w-2.5 shrink-0 opacity-80" />
+                        <span className="shrink-0 font-mono text-[9.5px] opacity-70">
+                          {formatTimeBR(p.scheduled_time)}
+                        </span>
                         <span className="flex-1 truncate font-medium">
                           {p.title || p.caption.slice(0, 28) || "Sem título"}
                         </span>
@@ -439,9 +442,15 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
                       {p.title || p.caption.slice(0, 40) || "Sem título"}
                     </p>
                   </div>
-                  <Badge className={cn("mt-1 rounded-full px-2 py-0 text-[9px]", meta.cls)}>
-                    {meta.label}
-                  </Badge>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <Badge className={cn("rounded-full px-2 py-0 text-[9px]", meta.cls)}>
+                      {meta.label}
+                    </Badge>
+                    <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <Clock className="h-2.5 w-2.5" />
+                      {formatTimeBR(p.scheduled_time)}
+                    </span>
+                  </div>
                 </div>
               </button>
             );

@@ -41,7 +41,7 @@ interface Post {
   status: RawPostStatus;
 }
 
-const STATUS_META: Record<Post["status"], { label: string; cls: string; dot: string }> = {
+const STATUS_META: Record<RawPostStatus, { label: string; cls: string; dot: string }> = {
   pending: {
     label: "Em Aprovação",
     cls: "bg-[oklch(0.78_0.14_55/0.18)] text-[oklch(0.85_0.14_70)] border border-[oklch(0.78_0.14_55/0.4)]",

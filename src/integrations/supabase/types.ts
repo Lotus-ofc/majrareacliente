@@ -70,6 +70,7 @@ export type Database = {
           post_format: Database["public"]["Enums"]["post_format"]
           scheduled_date: string
           status: Database["public"]["Enums"]["post_status"]
+          title: string
           updated_at: string
         }
         Insert: {
@@ -82,6 +83,7 @@ export type Database = {
           post_format?: Database["public"]["Enums"]["post_format"]
           scheduled_date: string
           status?: Database["public"]["Enums"]["post_status"]
+          title?: string
           updated_at?: string
         }
         Update: {
@@ -94,6 +96,7 @@ export type Database = {
           post_format?: Database["public"]["Enums"]["post_format"]
           scheduled_date?: string
           status?: Database["public"]["Enums"]["post_status"]
+          title?: string
           updated_at?: string
         }
         Relationships: []

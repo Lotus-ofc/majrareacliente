@@ -45,6 +45,7 @@ type PostStatus = "pending" | "approved" | "published";
 interface Post {
   id: string;
   scheduled_date: string;
+  title: string;
   image_url: string | null;
   media_urls: string[];
   post_format: PostFormat;
@@ -97,6 +98,7 @@ const FORMAT_OPTIONS: Array<{
 
 interface FormState {
   scheduled_date: string;
+  title: string;
   media_urls: string[];
   post_format: PostFormat;
   caption: string;
@@ -105,6 +107,7 @@ interface FormState {
 
 const emptyForm: FormState = {
   scheduled_date: new Date().toISOString().slice(0, 10),
+  title: "",
   media_urls: [],
   post_format: "single",
   caption: "",
@@ -139,10 +142,10 @@ export function ManagePostsDialog({
     setLoading(true);
     const { data } = await supabase
       .from("editorial_posts")
-      .select("id, scheduled_date, image_url, media_urls, post_format, caption, status")
+      .select("id, scheduled_date, title, image_url, media_urls, post_format, caption, status")
       .eq("client_id", clientId)
       .order("scheduled_date", { ascending: true });
-    const normalized = (data ?? []).map((p) => {
+    const normalized = (data ?? []).map((p: { id: string; scheduled_date: string; title?: string | null; image_url: string | null; media_urls: unknown; post_format: string | null; caption: string; status: string }) => {
       const mu = Array.isArray(p.media_urls)
         ? (p.media_urls as unknown[]).filter(
             (u): u is string => typeof u === "string" && u.length > 0,
@@ -152,6 +155,7 @@ export function ManagePostsDialog({
       return {
         id: p.id,
         scheduled_date: p.scheduled_date,
+        title: p.title ?? "",
         image_url: p.image_url,
         media_urls: finalMedia,
         post_format: (p.post_format ?? "single") as PostFormat,
@@ -172,6 +176,7 @@ export function ManagePostsDialog({
     setEditingId(p.id);
     setForm({
       scheduled_date: p.scheduled_date,
+      title: p.title,
       media_urls: p.media_urls,
       post_format: p.post_format,
       caption: p.caption,
@@ -284,6 +289,7 @@ export function ManagePostsDialog({
     const payload = {
       client_id: clientId,
       scheduled_date: form.scheduled_date,
+      title: form.title,
       image_url: form.media_urls[0] ?? null, // legacy compat
       media_urls: form.media_urls,
       post_format: form.post_format,
@@ -389,6 +395,21 @@ export function ManagePostsDialog({
                   );
                 })}
               </div>
+            </div>
+
+            <div className="mb-3 space-y-2">
+              <Label className="text-xs">Título do post</Label>
+              <Input
+                value={form.title}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, title: e.target.value }))
+                }
+                placeholder="Ex: Lançamento da nova coleção"
+                maxLength={120}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Aparece como identificador rápido no calendário. {form.title.length}/120
+              </p>
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -695,6 +716,11 @@ export function ManagePostsDialog({
                             )}
                           </span>
                         </div>
+                        {p.title && (
+                          <p className="mt-1 truncate text-sm font-semibold text-foreground">
+                            {p.title}
+                          </p>
+                        )}
                         <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-foreground/90">
                           {p.caption || (
                             <span className="italic text-muted-foreground">Sem legenda</span>

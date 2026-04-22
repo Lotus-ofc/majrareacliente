@@ -35,21 +35,30 @@ import {
   Layers,
   Square,
   Smartphone,
+  Clock,
+  MessageSquareWarning,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateBR } from "@/lib/format";
 import { InstagramPreview, type PostFormat } from "./InstagramPreview";
+import { formatTimeBR } from "@/lib/post-status";
 
 type PostStatus = "pending" | "approved" | "published";
+type CaptionChangeStatus = "none" | "pending" | "rejected";
 
 interface Post {
   id: string;
   scheduled_date: string;
+  scheduled_time: string;
   title: string;
   image_url: string | null;
   media_urls: string[];
   post_format: PostFormat;
   caption: string;
+  pending_caption: string | null;
+  caption_change_status: CaptionChangeStatus;
   status: PostStatus;
 }
 
@@ -98,6 +107,7 @@ const FORMAT_OPTIONS: Array<{
 
 interface FormState {
   scheduled_date: string;
+  scheduled_time: string;
   title: string;
   media_urls: string[];
   post_format: PostFormat;
@@ -107,6 +117,7 @@ interface FormState {
 
 const emptyForm: FormState = {
   scheduled_date: new Date().toISOString().slice(0, 10),
+  scheduled_time: "09:00",
   title: "",
   media_urls: [],
   post_format: "single",

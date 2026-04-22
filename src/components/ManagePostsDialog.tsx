@@ -153,10 +153,24 @@ export function ManagePostsDialog({
     setLoading(true);
     const { data } = await supabase
       .from("editorial_posts")
-      .select("id, scheduled_date, title, image_url, media_urls, post_format, caption, status")
+      .select(
+        "id, scheduled_date, scheduled_time, title, image_url, media_urls, post_format, caption, pending_caption, caption_change_status, status",
+      )
       .eq("client_id", clientId)
       .order("scheduled_date", { ascending: true });
-    const normalized = (data ?? []).map((p: { id: string; scheduled_date: string; title?: string | null; image_url: string | null; media_urls: unknown; post_format: string | null; caption: string; status: string }) => {
+    const normalized = (data ?? []).map((p: {
+      id: string;
+      scheduled_date: string;
+      scheduled_time?: string | null;
+      title?: string | null;
+      image_url: string | null;
+      media_urls: unknown;
+      post_format: string | null;
+      caption: string;
+      pending_caption?: string | null;
+      caption_change_status?: string | null;
+      status: string;
+    }): Post => {
       const mu = Array.isArray(p.media_urls)
         ? (p.media_urls as unknown[]).filter(
             (u): u is string => typeof u === "string" && u.length > 0,
@@ -166,11 +180,14 @@ export function ManagePostsDialog({
       return {
         id: p.id,
         scheduled_date: p.scheduled_date,
+        scheduled_time: p.scheduled_time ?? "09:00:00",
         title: p.title ?? "",
         image_url: p.image_url,
         media_urls: finalMedia,
         post_format: (p.post_format ?? "single") as PostFormat,
         caption: p.caption,
+        pending_caption: p.pending_caption ?? null,
+        caption_change_status: (p.caption_change_status ?? "none") as CaptionChangeStatus,
         status: p.status as PostStatus,
       };
     });
@@ -187,12 +204,47 @@ export function ManagePostsDialog({
     setEditingId(p.id);
     setForm({
       scheduled_date: p.scheduled_date,
+      scheduled_time: formatTimeBR(p.scheduled_time),
       title: p.title,
       media_urls: p.media_urls,
       post_format: p.post_format,
       caption: p.caption,
       status: p.status,
     });
+  };
+
+  const approveCaptionChange = async (p: Post) => {
+    if (!p.pending_caption) return;
+    const { error } = await supabase
+      .from("editorial_posts")
+      .update({
+        caption: p.pending_caption,
+        pending_caption: null,
+        caption_change_status: "none",
+      })
+      .eq("id", p.id);
+    if (error) {
+      toast.error("Falha ao aprovar legenda", { description: error.message });
+      return;
+    }
+    toast.success("Legenda atualizada com a sugestão do cliente");
+    void fetchPosts();
+  };
+
+  const rejectCaptionChange = async (p: Post) => {
+    const { error } = await supabase
+      .from("editorial_posts")
+      .update({
+        pending_caption: null,
+        caption_change_status: "rejected",
+      })
+      .eq("id", p.id);
+    if (error) {
+      toast.error("Falha ao rejeitar", { description: error.message });
+      return;
+    }
+    toast.success("Sugestão rejeitada");
+    void fetchPosts();
   };
 
   const cancelEdit = () => {

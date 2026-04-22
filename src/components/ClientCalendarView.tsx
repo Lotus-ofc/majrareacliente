@@ -476,8 +476,10 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
         <PostDetailModal
           post={selectedPost}
           username={username}
+          now={now}
           onClose={() => setSelectedPost(null)}
           onApprove={() => approve(selectedPost.id)}
+          onProposeCaption={(text) => proposeCaption(selectedPost.id, text)}
           approving={approvingId === selectedPost.id}
         />
       )}

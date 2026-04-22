@@ -397,6 +397,21 @@ export function ManagePostsDialog({
               </div>
             </div>
 
+            <div className="mb-3 space-y-2">
+              <Label className="text-xs">Título do post</Label>
+              <Input
+                value={form.title}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, title: e.target.value }))
+                }
+                placeholder="Ex: Lançamento da nova coleção"
+                maxLength={120}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Aparece como identificador rápido no calendário. {form.title.length}/120
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label className="text-xs">Data programada</Label>

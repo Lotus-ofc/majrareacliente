@@ -97,12 +97,11 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
   const fetchPosts = async () => {
     const { data } = await supabase
       .from("editorial_posts")
-      // @ts-expect-error - title column added via migration; types regen on next pull
       .select("id, scheduled_date, title, image_url, media_urls, post_format, caption, status")
       .eq("client_id", clientId)
       .order("scheduled_date", { ascending: true });
 
-    const normalized = (data ?? []).map((p: any) => {
+    const normalized = (data ?? []).map((p: { id: string; scheduled_date: string; title?: string | null; image_url: string | null; media_urls: unknown; post_format: string | null; caption: string; status: string }) => {
       const mu = Array.isArray(p.media_urls)
         ? (p.media_urls as unknown[]).filter(
             (u): u is string => typeof u === "string" && u.length > 0,

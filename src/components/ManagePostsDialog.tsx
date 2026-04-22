@@ -774,8 +774,11 @@ export function ManagePostsDialog({
                       )}
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                             {formatDateBR(p.scheduled_date)}
+                            <span className="text-muted-foreground/60">·</span>
+                            <Clock className="h-3 w-3" />
+                            {formatTimeBR(p.scheduled_time)}
                           </span>
                           <Badge
                             className={cn(
@@ -792,6 +795,12 @@ export function ManagePostsDialog({
                               <span>· {p.media_urls.length}</span>
                             )}
                           </span>
+                          {p.caption_change_status === "pending" && (
+                            <Badge className="rounded-full border border-[oklch(0.78_0.14_55/0.4)] bg-[oklch(0.78_0.14_55/0.18)] px-2 py-0 text-[10px] text-[oklch(0.85_0.14_70)]">
+                              <MessageSquareWarning className="mr-1 h-3 w-3" />
+                              Sugestão de legenda
+                            </Badge>
+                          )}
                         </div>
                         {p.title && (
                           <p className="mt-1 truncate text-sm font-semibold text-foreground">
@@ -803,6 +812,40 @@ export function ManagePostsDialog({
                             <span className="italic text-muted-foreground">Sem legenda</span>
                           )}
                         </p>
+
+                        {/* Caption change suggestion review */}
+                        {p.caption_change_status === "pending" && p.pending_caption && (
+                          <div className="mt-2 rounded-lg border border-[oklch(0.78_0.14_55/0.4)] bg-[oklch(0.78_0.14_55/0.08)] p-2.5">
+                            <div className="mb-1.5 flex items-center justify-between gap-2">
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-[oklch(0.85_0.14_70)]">
+                                Cliente sugeriu nova legenda
+                              </p>
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 text-[10px] text-mint hover:bg-mint/10 hover:text-mint"
+                                  onClick={() => approveCaptionChange(p)}
+                                >
+                                  <ThumbsUp className="mr-1 h-3 w-3" />
+                                  Aprovar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                  onClick={() => rejectCaptionChange(p)}
+                                >
+                                  <ThumbsDown className="mr-1 h-3 w-3" />
+                                  Rejeitar
+                                </Button>
+                              </div>
+                            </div>
+                            <p className="max-h-[120px] overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-foreground/90">
+                              {p.pending_caption}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-1">

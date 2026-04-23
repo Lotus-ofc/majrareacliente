@@ -59,6 +59,39 @@ export type Database = {
         }
         Relationships: []
       }
+      editorial_notes: {
+        Row: {
+          client_id: string
+          color: string
+          content: string
+          created_at: string
+          id: string
+          note_date: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          color?: string
+          content?: string
+          created_at?: string
+          id?: string
+          note_date: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          color?: string
+          content?: string
+          created_at?: string
+          id?: string
+          note_date?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       editorial_posts: {
         Row: {
           caption: string

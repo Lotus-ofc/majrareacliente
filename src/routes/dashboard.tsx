@@ -6,6 +6,7 @@ import { PortalHeader } from "@/components/PortalHeader";
 import { PortalSidebar } from "@/components/PortalSidebar";
 import { MetricCard } from "@/components/MetricCard";
 import { ClientCalendarView } from "@/components/ClientCalendarView";
+import { ClientEditorialView } from "@/components/ClientEditorialView";
 import { ClientFinanceView } from "@/components/ClientFinanceView";
 import { SocialReportView } from "@/components/SocialReportView";
 import { SOURCES, type ReportSource } from "@/lib/sources";
@@ -261,6 +262,7 @@ function DashboardPage() {
               clientName={profile?.company || profile?.full_name}
             />
           )}
+          {section === "editorial" && <ClientEditorialView clientId={user.id} />}
           {section === "finance" && <ClientFinanceView clientId={user.id} />}
         </main>
       </div>

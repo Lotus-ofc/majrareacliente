@@ -1,4 +1,4 @@
-import logo from "@/assets/logo-majr.png";
+import logo from "@/assets/logo-majr-lotus.png";
 
 interface Props {
   size?: number;
@@ -15,7 +15,7 @@ export function MajrLogo({ size = 44, withWordmark = true, className }: Props) {
         width={size}
         height={size}
         loading="lazy"
-        className="rounded-lg"
+        className="object-contain"
         style={{ width: size, height: size }}
       />
       {withWordmark && (

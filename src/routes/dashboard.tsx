@@ -4,13 +4,13 @@ import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { PortalHeader } from "@/components/PortalHeader";
 import { PortalSidebar } from "@/components/PortalSidebar";
-import { MetricCard } from "@/components/MetricCard";
 import { ClientCalendarView } from "@/components/ClientCalendarView";
 import { ClientEditorialView } from "@/components/ClientEditorialView";
 import { ClientFinanceView } from "@/components/ClientFinanceView";
-import { SocialReportView } from "@/components/SocialReportView";
+import { ReportBentoView } from "@/components/ReportBentoView";
 import { SOURCES, type ReportSource } from "@/lib/sources";
-import { METRICS_BY_SOURCE, formatMetricValue } from "@/lib/metrics";
+import { METRICS_BY_SOURCE } from "@/lib/metrics";
+import { REPORT_BENTO } from "@/lib/report-bento";
 import { PORTAL_SECTIONS, type PortalSection } from "@/lib/portal-sections";
 import { ExternalLink, FileWarning, Loader2 } from "lucide-react";
 
@@ -92,6 +92,7 @@ function DashboardPage() {
   const currentMeta = SOURCES.find((s) => s.key === active)!;
   const sectionMeta = PORTAL_SECTIONS.find((s) => s.key === section)!;
   const metricDefs = METRICS_BY_SOURCE[active];
+  const bentoConfig = REPORT_BENTO[active];
   const metricValues = current?.metrics ?? {};
   const fullReportUrl = current?.iframe_url?.trim() || null;
 
@@ -107,8 +108,12 @@ function DashboardPage() {
     );
   }
 
+  // Reports tab: lock to viewport on lg+ so the bento renders without scroll.
+  // Other tabs scroll naturally.
+  const isReports = section === "reports";
+
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen lg:h-screen lg:overflow-hidden">
       <PortalSidebar
         section={section}
         onSectionChange={setSection}
@@ -118,16 +123,22 @@ function DashboardPage() {
         onClose={() => setOpen(false)}
       />
 
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-screen flex-1 flex-col lg:h-screen lg:min-h-0">
         <PortalHeader onMenuClick={() => setOpen(true)} showMenuButton />
 
-        <main className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 fade-in">
+        <main
+          className={
+            isReports
+              ? "flex flex-1 flex-col gap-3 p-3 sm:p-4 lg:min-h-0 lg:overflow-hidden"
+              : "flex flex-1 flex-col gap-6 overflow-y-auto p-4 sm:p-6"
+          }
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3 fade-in lg:flex-shrink-0">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">
                 {section === "reports" ? "Relatório" : sectionMeta.label}
               </p>
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl lg:text-2xl">
                 {section === "reports" ? currentMeta.label : sectionMeta.label}
               </h1>
             </div>
@@ -136,7 +147,7 @@ function DashboardPage() {
                 href={fullReportUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] px-4 py-2.5 text-xs font-medium text-primary-foreground shadow-[0_10px_30px_-10px_oklch(0.42_0.22_305/0.7)] transition-transform hover:scale-[1.02]"
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] px-3.5 py-2 text-xs font-medium text-primary-foreground shadow-[0_10px_30px_-10px_oklch(0.42_0.22_305/0.7)] transition-transform hover:scale-[1.02]"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
                 Abrir relatório completo
@@ -146,15 +157,15 @@ function DashboardPage() {
 
           {section === "reports" &&
             (loading ? (
-              <div className="glass flex flex-1 items-center justify-center rounded-2xl py-24">
+              <div className="glass flex flex-1 items-center justify-center rounded-2xl py-24 lg:min-h-0">
                 <div className="flex flex-col items-center gap-3 text-muted-foreground">
                   <Loader2 className="h-6 w-6 animate-spin" />
                   <p className="text-sm">Carregando métricas…</p>
                 </div>
               </div>
-            ) : hasAnyMetric ? (
-              active === "instagram_organic" && current ? (
-                <SocialReportView
+            ) : hasAnyMetric && current ? (
+              <div className="flex-1 lg:min-h-0 lg:overflow-y-auto lg:overflow-x-hidden">
+                <ReportBentoView
                   data={{
                     metrics: metricValues,
                     previous_metrics: current.previous_metrics ?? null,
@@ -163,84 +174,13 @@ function DashboardPage() {
                     time_series: current.time_series ?? null,
                   }}
                   metricDefs={metricDefs}
-                  sections={[
-                    {
-                      title: "Resumo geral",
-                      keys: ["reach", "views", "engagement", "engagement_rate", "frequency", "interactions"],
-                    },
-                    {
-                      title: "Detalhamento de interações",
-                      keys: ["likes", "comments", "shares", "saves", "profile_link_clicks"],
-                    },
-                    {
-                      title: "Seguidores",
-                      keys: ["followers_total", "new_followers", "growth_rate"],
-                    },
-                    {
-                      title: "Reels",
-                      keys: ["reels_total", "reels_views_total", "reels_views_avg"],
-                    },
-                    {
-                      title: "Posts no feed",
-                      keys: ["posts_total", "posts_interactions_total"],
-                    },
-                    {
-                      title: "Stories",
-                      keys: ["stories_total", "stories_views_total"],
-                    },
-                  ]}
-                  interactionPieKeys={["likes", "comments", "shares", "saves", "profile_link_clicks"]}
-                  seriesKeys={["reach", "interactions", "followers_total", "views"]}
-                  comparisonKeys={["reach", "interactions", "followers_total", "engagement"]}
-                  gaugeKeys={["engagement_rate", "growth_rate"]}
+                  config={bentoConfig}
+                  sourceLabel={currentMeta.label}
+                  SourceIcon={currentMeta.icon}
                 />
-              ) : active === "tiktok_organic" && current ? (
-                <SocialReportView
-                  data={{
-                    metrics: metricValues,
-                    previous_metrics: current.previous_metrics ?? null,
-                    period_start: current.period_start ?? null,
-                    period_end: current.period_end ?? null,
-                    time_series: current.time_series ?? null,
-                  }}
-                  metricDefs={metricDefs}
-                  sections={[
-                    {
-                      title: "Resumo geral",
-                      keys: ["video_views_total", "profile_views", "likes", "comments", "shares", "videos_total", "posts_total", "following"],
-                    },
-                    {
-                      title: "Seguidores",
-                      keys: ["followers_total", "new_followers", "growth_rate"],
-                    },
-                    {
-                      title: "Engajamento",
-                      keys: ["engagement_rate", "interactions_total", "interactions_avg_per_post"],
-                    },
-                    {
-                      title: "Performance de vídeos",
-                      keys: ["video_views_avg_per_post", "avg_watch_time", "watched_full_rate"],
-                    },
-                  ]}
-                  interactionPieKeys={["likes", "comments", "shares"]}
-                  seriesKeys={["video_views_total", "interactions_total", "followers_total", "profile_views"]}
-                  comparisonKeys={["video_views_total", "interactions_total", "followers_total", "profile_views"]}
-                  gaugeKeys={["engagement_rate", "watched_full_rate", "growth_rate"]}
-                />
-              ) : (
-                <div className="grid grid-cols-1 gap-4 fade-in sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {metricDefs.map((m) => (
-                    <MetricCard
-                      key={m.key}
-                      label={m.label}
-                      value={formatMetricValue(metricValues[m.key], m.format)}
-                      Icon={m.icon}
-                    />
-                  ))}
-                </div>
-              )
+              </div>
             ) : (
-              <div className="glass flex flex-1 items-center justify-center rounded-2xl py-24 fade-in">
+              <div className="glass flex flex-1 items-center justify-center rounded-2xl py-24 fade-in lg:min-h-0">
                 <div className="max-w-sm px-6 text-center text-muted-foreground">
                   <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-secondary">
                     <FileWarning className="h-5 w-5 text-lilac" />

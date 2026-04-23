@@ -1,8 +1,18 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { MajrLogo } from "@/components/MajrLogo";
 import { Button } from "@/components/ui/button";
-import { LogOut, MessageCircle, Menu } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
+import { ChevronDown, KeyRound, LogOut, Menu, MessageCircle, User } from "lucide-react";
 import { DEFAULT_WHATSAPP } from "@/lib/sources";
 
 interface Props {
@@ -14,6 +24,7 @@ interface Props {
 export function PortalHeader({ onMenuClick, showMenuButton, rightSlot }: Props) {
   const { profile, signOut, role } = useAuth();
   const navigate = useNavigate();
+  const [pwOpen, setPwOpen] = useState(false);
   const whats = profile?.whatsapp_url || DEFAULT_WHATSAPP;
 
   const handleLogout = async () => {
@@ -47,12 +58,6 @@ export function PortalHeader({ onMenuClick, showMenuButton, rightSlot }: Props) 
 
       <div className="flex items-center gap-2 sm:gap-3">
         {rightSlot}
-        <div className="hidden text-right sm:block">
-          <div className="text-sm font-medium text-foreground">{displayName}</div>
-          {profile?.company && (
-            <div className="text-[11px] text-muted-foreground">{profile.company}</div>
-          )}
-        </div>
 
         <a
           href={whats}
@@ -73,16 +78,56 @@ export function PortalHeader({ onMenuClick, showMenuButton, rightSlot }: Props) 
           <MessageCircle className="h-4 w-4" />
         </a>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleLogout}
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <LogOut className="h-4 w-4 sm:mr-2" />
-          <span className="hidden sm:inline">Sair</span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2 px-2 text-foreground hover:bg-secondary/60"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card/60">
+                <User className="h-3.5 w-3.5 text-lilac" />
+              </span>
+              <span className="hidden text-left sm:block">
+                <span className="block text-xs font-medium leading-tight text-foreground">
+                  {displayName}
+                </span>
+                {profile?.company && (
+                  <span className="block text-[10px] leading-tight text-muted-foreground">
+                    {profile.company}
+                  </span>
+                )}
+              </span>
+              <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="text-xs">
+              <div className="font-medium text-foreground">{displayName}</div>
+              {profile?.company && (
+                <div className="mt-0.5 text-[10px] font-normal text-muted-foreground">
+                  {profile.company}
+                </div>
+              )}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setPwOpen(true)} className="cursor-pointer">
+              <KeyRound className="mr-2 h-4 w-4" />
+              Alterar senha
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="cursor-pointer text-destructive focus:text-destructive"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sair
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+
+      <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />
     </header>
   );
 }

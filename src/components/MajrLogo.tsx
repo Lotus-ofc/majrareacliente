@@ -15,7 +15,7 @@ export function MajrLogo({ size = 44, withWordmark = true, className }: Props) {
         width={size}
         height={size}
         loading="lazy"
-        className="rounded-lg"
+        className="object-contain"
         style={{ width: size, height: size }}
       />
       {withWordmark && (

@@ -388,6 +388,87 @@ function CreateClientDialog({
   );
 }
 
+function ResetPasswordDialog({
+  client,
+  onClose,
+}: {
+  client: ClientRow;
+  onClose: () => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<{ email: string; password: string } | null>(null);
+
+  const reset = async () => {
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-reset-password", {
+        body: { user_id: client.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setResult({ email: data.email, password: data.password });
+      toast.success("Senha resetada com sucesso");
+    } catch (e) {
+      toast.error("Falha ao resetar senha", { description: (e as Error).message });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="glass-strong sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Resetar senha</DialogTitle>
+          <DialogDescription>
+            Uma nova senha aleatória será gerada para{" "}
+            <b className="text-foreground">{client.full_name || client.company || "este cliente"}</b>.
+            A senha antiga deixará de funcionar imediatamente.
+          </DialogDescription>
+        </DialogHeader>
+
+        {result ? (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-mint/30 bg-mint/10 p-4">
+              <p className="text-xs uppercase tracking-wider text-mint">Nova senha gerada</p>
+              <div className="mt-3 space-y-2 text-sm">
+                <CredRow label="E-mail" value={result.email} />
+                <CredRow label="Nova senha" value={result.password} />
+              </div>
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                Copie e envie ao cliente. Esta senha não será exibida novamente.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button onClick={onClose}>Concluir</Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={onClose} disabled={submitting}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={reset}
+              disabled={submitting}
+              className="bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] font-medium text-primary-foreground"
+            >
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <KeyRound className="mr-2 h-4 w-4" />
+                  Gerar nova senha
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CredRow({ label, value }: { label: string; value: string }) {
   const copy = async () => {
     await navigator.clipboard.writeText(value);

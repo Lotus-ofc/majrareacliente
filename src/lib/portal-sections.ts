@@ -1,6 +1,6 @@
-import { BarChart3, CalendarDays, Wallet, type LucideIcon } from "lucide-react";
+import { BarChart3, CalendarDays, NotebookPen, Wallet, type LucideIcon } from "lucide-react";
 
-export type PortalSection = "reports" | "calendar" | "finance";
+export type PortalSection = "reports" | "calendar" | "editorial" | "finance";
 
 export interface PortalSectionMeta {
   key: PortalSection;
@@ -11,5 +11,6 @@ export interface PortalSectionMeta {
 export const PORTAL_SECTIONS: PortalSectionMeta[] = [
   { key: "reports", label: "Relatórios", icon: BarChart3 },
   { key: "calendar", label: "Aprovação de Posts", icon: CalendarDays },
+  { key: "editorial", label: "Calendário Editorial", icon: NotebookPen },
   { key: "finance", label: "Financeiro", icon: Wallet },
 ];

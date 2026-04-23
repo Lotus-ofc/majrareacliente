@@ -1,4 +1,4 @@
-import logo from "@/assets/logo-majr.png";
+import logo from "@/assets/logo-majr-lotus.png";
 
 interface Props {
   size?: number;

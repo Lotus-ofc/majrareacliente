@@ -20,6 +20,7 @@ import {
   CalendarDays,
   Copy,
   FileText,
+  KeyRound,
   Loader2,
   NotebookPen,
   Plus,
@@ -71,6 +72,7 @@ function AdminPage() {
   const [postsClient, setPostsClient] = useState<ClientRow | null>(null);
   const [editorialClient, setEditorialClient] = useState<ClientRow | null>(null);
   const [invoicesClient, setInvoicesClient] = useState<ClientRow | null>(null);
+  const [resetClient, setResetClient] = useState<ClientRow | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -197,6 +199,15 @@ function AdminPage() {
                       <Wallet className="mr-2 h-4 w-4" />
                       Financeiro
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setResetClient(c)}
+                      className="border-[oklch(0.78_0.14_55/0.4)] bg-[oklch(0.78_0.14_55/0.1)] text-[oklch(0.85_0.14_70)] hover:bg-[oklch(0.78_0.14_55/0.2)]"
+                    >
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      Resetar senha
+                    </Button>
                   </div>
                 </li>
               ))}
@@ -204,6 +215,13 @@ function AdminPage() {
           )}
         </div>
       </main>
+
+      {resetClient && (
+        <ResetPasswordDialog
+          client={resetClient}
+          onClose={() => setResetClient(null)}
+        />
+      )}
 
       {selected && (
         <ManageReportsDialog

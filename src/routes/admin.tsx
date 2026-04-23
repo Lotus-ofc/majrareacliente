@@ -21,6 +21,7 @@ import {
   Copy,
   FileText,
   Loader2,
+  NotebookPen,
   Plus,
   Save,
   ShieldCheck,
@@ -35,6 +36,7 @@ import { METRICS_BY_SOURCE } from "@/lib/metrics";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ManagePostsDialog } from "@/components/ManagePostsDialog";
 import { ManageInvoicesDialog } from "@/components/ManageInvoicesDialog";
+import { ManageEditorialDialog } from "@/components/ManageEditorialDialog";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -67,6 +69,7 @@ function AdminPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [selected, setSelected] = useState<ClientRow | null>(null);
   const [postsClient, setPostsClient] = useState<ClientRow | null>(null);
+  const [editorialClient, setEditorialClient] = useState<ClientRow | null>(null);
   const [invoicesClient, setInvoicesClient] = useState<ClientRow | null>(null);
 
   useEffect(() => {
@@ -179,6 +182,15 @@ function AdminPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => setEditorialClient(c)}
+                      className="border-border bg-card/60 hover:bg-secondary"
+                    >
+                      <NotebookPen className="mr-2 h-4 w-4" />
+                      Editorial
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => setInvoicesClient(c)}
                       className="border-border bg-card/60 hover:bg-secondary"
                     >
@@ -205,6 +217,14 @@ function AdminPage() {
           clientId={postsClient.id}
           clientName={postsClient.full_name || postsClient.company || "Cliente"}
           onClose={() => setPostsClient(null)}
+        />
+      )}
+
+      {editorialClient && (
+        <ManageEditorialDialog
+          clientId={editorialClient.id}
+          clientName={editorialClient.full_name || editorialClient.company || "Cliente"}
+          onClose={() => setEditorialClient(null)}
         />
       )}
 

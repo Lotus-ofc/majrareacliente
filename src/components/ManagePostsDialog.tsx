@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils";
 import { formatDateBR } from "@/lib/format";
 import { InstagramPreview, type PostFormat } from "./InstagramPreview";
 import { formatTimeBR } from "@/lib/post-status";
+import { notifyClient } from "@/lib/notify-admin";
 
 type PostStatus = "pending" | "approved" | "published";
 type CaptionChangeStatus = "none" | "pending" | "rejected";
@@ -369,6 +370,9 @@ export function ManagePostsDialog({
       return;
     }
     toast.success(editingId ? "Post atualizado" : "Post criado");
+    if (!editingId) {
+      void notifyClient({ clientId, event: "post.created" });
+    }
     cancelEdit();
     void fetchPosts();
   };

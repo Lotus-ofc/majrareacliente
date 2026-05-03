@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Loader2, NotebookPen, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { notifyClient } from "@/lib/notify-admin";
 
 interface Note {
   id: string;
@@ -229,6 +230,7 @@ function NoteFormDialog({
         return;
       }
       toast.success("Anotação criada");
+      void notifyClient({ clientId, event: "editorial.note" });
     }
     onSaved();
   };

@@ -24,7 +24,7 @@ interface Props {
 }
 
 export function PortalHeader({ onMenuClick, showMenuButton, rightSlot }: Props) {
-  const { profile, signOut, role } = useAuth();
+  const { profile, signOut, role, user } = useAuth();
   const navigate = useNavigate();
   const [pwOpen, setPwOpen] = useState(false);
   const whats = profile?.whatsapp_url || DEFAULT_WHATSAPP;

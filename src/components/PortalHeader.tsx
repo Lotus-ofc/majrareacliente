@@ -59,6 +59,7 @@ export function PortalHeader({ onMenuClick, showMenuButton, rightSlot }: Props) 
 
       <div className="flex items-center gap-2 sm:gap-3">
         {rightSlot}
+        {role === "client" && user?.id && <PushToggle userId={user.id} />}
 
         <a
           href={whats}

@@ -33,6 +33,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { SOURCES, type ReportSource } from "@/lib/sources";
+import { notifyClient } from "@/lib/notify-admin";
 import { METRICS_BY_SOURCE } from "@/lib/metrics";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ManagePostsDialog } from "@/components/ManagePostsDialog";
@@ -636,6 +637,9 @@ function ManageReportsDialog({
         if (error) throw error;
       }
       toast.success("Relatórios atualizados");
+      if (toUpsert.length > 0) {
+        void notifyClient({ clientId: client.id, event: "report.published" });
+      }
       onClose();
     } catch (e) {
       toast.error("Erro ao salvar", { description: (e as Error).message });

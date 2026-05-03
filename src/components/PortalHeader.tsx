@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
+import { PushToggle } from "@/components/PushToggle";
 import { ChevronDown, KeyRound, LogOut, Menu, MessageCircle, User } from "lucide-react";
 import { DEFAULT_WHATSAPP } from "@/lib/sources";
 
@@ -22,7 +23,7 @@ interface Props {
 }
 
 export function PortalHeader({ onMenuClick, showMenuButton, rightSlot }: Props) {
-  const { profile, signOut, role } = useAuth();
+  const { profile, signOut, role, user } = useAuth();
   const navigate = useNavigate();
   const [pwOpen, setPwOpen] = useState(false);
   const whats = profile?.whatsapp_url || DEFAULT_WHATSAPP;
@@ -58,6 +59,7 @@ export function PortalHeader({ onMenuClick, showMenuButton, rightSlot }: Props) 
 
       <div className="flex items-center gap-2 sm:gap-3">
         {rightSlot}
+        {role === "client" && user?.id && <PushToggle userId={user.id} />}
 
         <a
           href={whats}

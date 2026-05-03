@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Pencil, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatBRL, formatDateBR, formatMonthLabel } from "@/lib/format";
+import { notifyClient } from "@/lib/notify-admin";
 
 type InvoiceStatus = "pending" | "paid" | "overdue";
 
@@ -139,6 +140,7 @@ export function ManageInvoicesDialog({
       status: form.status,
       pix_key: form.pix_key.trim() || null,
     };
+    const previous = editingId ? invoices.find((i) => i.id === editingId) : null;
     const { error } = editingId
       ? await supabase.from("invoices").update(payload).eq("id", editingId)
       : await supabase.from("invoices").insert(payload);
@@ -148,6 +150,11 @@ export function ManageInvoicesDialog({
       return;
     }
     toast.success(editingId ? "Fatura atualizada" : "Fatura criada");
+    if (!editingId) {
+      void notifyClient({ clientId, event: "invoice.created" });
+    } else if (previous?.status !== "paid" && form.status === "paid") {
+      void notifyClient({ clientId, event: "invoice.paid" });
+    }
     cancelEdit();
     void fetchInvoices();
   };

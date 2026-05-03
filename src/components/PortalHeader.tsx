@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { PushToggle } from "@/components/PushToggle";
-import { useAuth as _useAuthForId } from "@/lib/auth-context";
 import { ChevronDown, KeyRound, LogOut, Menu, MessageCircle, User } from "lucide-react";
 import { DEFAULT_WHATSAPP } from "@/lib/sources";
 

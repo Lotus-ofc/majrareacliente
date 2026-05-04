@@ -395,7 +395,12 @@ export function ManagePostsDialog({
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="glass-strong max-h-[92vh] overflow-y-auto sm:max-w-5xl">
+      <DialogContent
+        className="glass-strong max-h-[92vh] overflow-y-auto sm:max-w-5xl"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Aprovação de Posts — {clientName}</DialogTitle>
           <DialogDescription>

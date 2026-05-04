@@ -83,7 +83,12 @@ export function ManageEditorialDialog({ clientId, clientName, onClose }: Props) 
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="glass-strong max-h-[90vh] overflow-hidden sm:max-w-2xl">
+      <DialogContent
+        className="glass-strong max-h-[90vh] overflow-hidden sm:max-w-2xl"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <NotebookPen className="h-4 w-4 text-lilac" />
@@ -237,7 +242,12 @@ function NoteFormDialog({
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="glass-strong sm:max-w-md">
+      <DialogContent
+        className="glass-strong sm:max-w-md"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>{note ? "Editar anotação" : "Nova anotação"}</DialogTitle>
         </DialogHeader>

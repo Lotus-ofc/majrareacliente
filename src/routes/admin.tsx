@@ -320,7 +320,12 @@ function CreateClientDialog({
           Novo cliente
         </Button>
       </DialogTrigger>
-      <DialogContent className="glass-strong sm:max-w-md">
+      <DialogContent
+        className="glass-strong sm:max-w-md"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Cadastrar novo cliente</DialogTitle>
           <DialogDescription>
@@ -418,7 +423,12 @@ function ResetPasswordDialog({
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="glass-strong sm:max-w-md">
+      <DialogContent
+        className="glass-strong sm:max-w-md"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Resetar senha</DialogTitle>
           <DialogDescription>

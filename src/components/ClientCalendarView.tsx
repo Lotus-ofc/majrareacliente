@@ -24,6 +24,7 @@ import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { InstagramPreview, type PostFormat } from "./InstagramPreview";
 import { formatTimeBR, getDisplayStatus, type RawPostStatus } from "@/lib/post-status";
+import { notifyAdmins } from "@/lib/notify-admin";
 
 type CaptionChangeStatus = "none" | "pending" | "rejected";
 

@@ -172,7 +172,12 @@ export function ManageInvoicesDialog({
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="glass-strong max-h-[92vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent
+        className="glass-strong max-h-[92vh] overflow-y-auto sm:max-w-3xl"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Financeiro — {clientName}</DialogTitle>
           <DialogDescription>

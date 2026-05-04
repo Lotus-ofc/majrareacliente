@@ -8,6 +8,7 @@ import { ClientCalendarView } from "@/components/ClientCalendarView";
 import { ClientEditorialView } from "@/components/ClientEditorialView";
 import { ClientFinanceView } from "@/components/ClientFinanceView";
 import { ReportBentoView } from "@/components/ReportBentoView";
+import { NewsView } from "@/components/NewsView";
 import { SOURCES, type ReportSource } from "@/lib/sources";
 import { METRICS_BY_SOURCE } from "@/lib/metrics";
 import { REPORT_BENTO } from "@/lib/report-bento";
@@ -37,7 +38,7 @@ interface ReportRow {
 function DashboardPage() {
   const { user, role, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [section, setSection] = useState<PortalSection>("reports");
+  const [section, setSection] = useState<PortalSection>("news");
   const [active, setActive] = useState<ReportSource>("overview");
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [profile, setProfile] = useState<{ full_name: string; company: string | null } | null>(null);
@@ -196,6 +197,7 @@ function DashboardPage() {
               </div>
             ))}
 
+          {section === "news" && <NewsView />}
           {section === "calendar" && (
             <ClientCalendarView
               clientId={user.id}

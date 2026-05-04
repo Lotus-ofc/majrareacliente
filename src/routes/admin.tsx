@@ -39,6 +39,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ManagePostsDialog } from "@/components/ManagePostsDialog";
 import { ManageInvoicesDialog } from "@/components/ManageInvoicesDialog";
 import { ManageEditorialDialog } from "@/components/ManageEditorialDialog";
+import { NewsView } from "@/components/NewsView";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -127,94 +128,115 @@ function AdminPage() {
       />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-              Painel
-            </p>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              Clientes
-            </h1>
-          </div>
-          <CreateClientDialog onCreated={fetchClients} accessToken={session?.access_token ?? ""} />
-        </div>
+        <Tabs defaultValue="clients" className="w-full">
+          <TabsList className="mb-4 grid w-full grid-cols-2 sm:w-auto sm:inline-flex">
+            <TabsTrigger value="clients">Clientes</TabsTrigger>
+            <TabsTrigger value="news">Novidades</TabsTrigger>
+          </TabsList>
 
-        <div className="mt-6 glass overflow-hidden rounded-2xl">
-          {loadingList ? (
-            <div className="flex items-center justify-center p-12">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <TabsContent value="clients" className="mt-0">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                  Painel
+                </p>
+                <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                  Clientes
+                </h1>
+              </div>
+              <CreateClientDialog onCreated={fetchClients} accessToken={session?.access_token ?? ""} />
             </div>
-          ) : clients.length === 0 ? (
-            <div className="px-6 py-16 text-center text-sm text-muted-foreground">
-              Nenhum cliente cadastrado ainda. Clique em <b className="text-foreground">Novo cliente</b>.
+
+            <div className="mt-6 glass overflow-hidden rounded-2xl">
+              {loadingList ? (
+                <div className="flex items-center justify-center p-12">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : clients.length === 0 ? (
+                <div className="px-6 py-16 text-center text-sm text-muted-foreground">
+                  Nenhum cliente cadastrado ainda. Clique em <b className="text-foreground">Novo cliente</b>.
+                </div>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {clients.map((c) => (
+                    <li
+                      key={c.id}
+                      className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6"
+                    >
+                      <div>
+                        <div className="text-sm font-medium text-foreground">
+                          {c.full_name || "Cliente sem nome"}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {c.company || "—"}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelected(c)}
+                          className="border-primary/40 bg-primary/10 text-lilac hover:bg-primary/15"
+                        >
+                          <UserCog className="mr-2 h-4 w-4" />
+                          Relatórios
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPostsClient(c)}
+                          className="border-border bg-card/60 hover:bg-secondary"
+                        >
+                          <CalendarDays className="mr-2 h-4 w-4" />
+                          Posts
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditorialClient(c)}
+                          className="border-border bg-card/60 hover:bg-secondary"
+                        >
+                          <NotebookPen className="mr-2 h-4 w-4" />
+                          Editorial
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setInvoicesClient(c)}
+                          className="border-border bg-card/60 hover:bg-secondary"
+                        >
+                          <Wallet className="mr-2 h-4 w-4" />
+                          Financeiro
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setResetClient(c)}
+                          className="border-[oklch(0.78_0.14_55/0.4)] bg-[oklch(0.78_0.14_55/0.1)] text-[oklch(0.85_0.14_70)] hover:bg-[oklch(0.78_0.14_55/0.2)]"
+                        >
+                          <KeyRound className="mr-2 h-4 w-4" />
+                          Resetar senha
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          ) : (
-            <ul className="divide-y divide-border">
-              {clients.map((c) => (
-                <li
-                  key={c.id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6"
-                >
-                  <div>
-                    <div className="text-sm font-medium text-foreground">
-                      {c.full_name || "Cliente sem nome"}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {c.company || "—"}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelected(c)}
-                      className="border-primary/40 bg-primary/10 text-lilac hover:bg-primary/15"
-                    >
-                      <UserCog className="mr-2 h-4 w-4" />
-                      Relatórios
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPostsClient(c)}
-                      className="border-border bg-card/60 hover:bg-secondary"
-                    >
-                      <CalendarDays className="mr-2 h-4 w-4" />
-                      Posts
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditorialClient(c)}
-                      className="border-border bg-card/60 hover:bg-secondary"
-                    >
-                      <NotebookPen className="mr-2 h-4 w-4" />
-                      Editorial
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setInvoicesClient(c)}
-                      className="border-border bg-card/60 hover:bg-secondary"
-                    >
-                      <Wallet className="mr-2 h-4 w-4" />
-                      Financeiro
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setResetClient(c)}
-                      className="border-[oklch(0.78_0.14_55/0.4)] bg-[oklch(0.78_0.14_55/0.1)] text-[oklch(0.85_0.14_70)] hover:bg-[oklch(0.78_0.14_55/0.2)]"
-                    >
-                      <KeyRound className="mr-2 h-4 w-4" />
-                      Resetar senha
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+          </TabsContent>
+
+          <TabsContent value="news" className="mt-0">
+            <div className="mb-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                Painel
+              </p>
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                Novidades
+              </h1>
+            </div>
+            <NewsView />
+          </TabsContent>
+        </Tabs>
       </main>
 
       {resetClient && (
@@ -320,7 +342,12 @@ function CreateClientDialog({
           Novo cliente
         </Button>
       </DialogTrigger>
-      <DialogContent className="glass-strong sm:max-w-md">
+      <DialogContent
+        className="glass-strong sm:max-w-md"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Cadastrar novo cliente</DialogTitle>
           <DialogDescription>
@@ -418,7 +445,12 @@ function ResetPasswordDialog({
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="glass-strong sm:max-w-md">
+      <DialogContent
+        className="glass-strong sm:max-w-md"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Resetar senha</DialogTitle>
           <DialogDescription>
@@ -650,7 +682,12 @@ function ManageReportsDialog({
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="glass-strong max-h-[90vh] sm:max-w-3xl">
+      <DialogContent
+        className="glass-strong max-h-[90vh] sm:max-w-3xl"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Relatórios — {client.full_name || client.company}</DialogTitle>
           <DialogDescription>

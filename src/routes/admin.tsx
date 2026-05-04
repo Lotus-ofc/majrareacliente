@@ -660,7 +660,12 @@ function ManageReportsDialog({
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="glass-strong max-h-[90vh] sm:max-w-3xl">
+      <DialogContent
+        className="glass-strong max-h-[90vh] sm:max-w-3xl"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Relatórios — {client.full_name || client.company}</DialogTitle>
           <DialogDescription>

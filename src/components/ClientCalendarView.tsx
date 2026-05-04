@@ -197,6 +197,11 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
     toast.success("Sugestão enviada", {
       description: "Aguardando aprovação do administrador.",
     });
+    void notifyAdmins({
+      event: "post.caption_change",
+      clientId,
+      body: "O cliente sugeriu uma nova legenda para um post. Abra a aba Posts para revisar.",
+    });
     setPosts((prev) =>
       prev.map((p) =>
         p.id === id

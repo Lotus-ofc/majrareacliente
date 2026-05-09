@@ -328,47 +328,7 @@ REGRAS:
 
     const userPromptText = `Aba/Plataforma: ${source}\n\nMétricas alvo:\n${defs.map(d => `- ${d.key}: ${d.label} (${d.format})`).join("\n")}${seriesKeys.length ? `\n\nSérie diária esperada: ${seriesKeys.join(", ")}` : ""}`;
 
-    let userContent: unknown;
-    if (kind === "pdf") {
-      const dataUrl = `data:application/pdf;base64,${bytesToBase64(buf)}`;
-      userContent = [
-        { type: "text", text: userPromptText },
-        { type: "image_url", image_url: { url: dataUrl } },
-      ];
-    } else {
-      const text = tabularToText(buf, kind);
-      userContent = `${userPromptText}\n\n--- DADOS DO ARQUIVO (${kind.toUpperCase()}) ---\n${text}`;
-    }
-
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userContent },
-        ],
-        tools: [{
-          type: "function",
-          function: { name: "save_snapshot", description: "Salva snapshot estruturado do relatório", parameters },
-        }],
-        tool_choice: { type: "function", function: { name: "save_snapshot" } },
-      }),
-    });
-
-    if (aiResp.status === 429) return json({ error: "Limite de requisições atingido. Tente novamente em instantes." }, 429);
-    if (aiResp.status === 402) return json({ error: "Créditos da IA esgotados. Adicione créditos em Settings > Workspace." }, 402);
-    if (!aiResp.ok) {
-      const t = await aiResp.text();
-      console.error("AI error", aiResp.status, t);
-      return json({ error: `IA retornou erro ${aiResp.status}` }, 500);
-    }
-
-    const aiData = await aiResp.json();
-    const toolCall = aiData?.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) return json({ error: "IA não retornou dados estruturados" }, 500);
-    const args = JSON.parse(toolCall.function.arguments) as {
+    let args: {
       period_start?: string;
       period_end?: string;
       metrics?: Record<string, string>;
@@ -376,6 +336,17 @@ REGRAS:
       time_series?: Array<Record<string, unknown>>;
       ai_analysis?: string;
     };
+    try {
+      args = await callGemini(systemPrompt, buildContent(userPromptText), {
+        name: "save_snapshot",
+        parameters,
+      });
+    } catch (e) {
+      const msg = (e as Error).message;
+      if (msg === "RATE_LIMIT") return json({ error: "Limite de requisições atingido. Tente novamente em instantes." }, 429);
+      if (msg === "CREDITS") return json({ error: "Créditos da IA esgotados." }, 402);
+      return json({ error: msg }, 500);
+    }
 
     const cleanedMetrics: Record<string, string> = {};
     const cleanedPrev: Record<string, string> = {};

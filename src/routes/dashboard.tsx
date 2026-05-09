@@ -123,7 +123,7 @@ function DashboardPage() {
   // Reset snapshot selection when changing source
   useEffect(() => {
     setSnapshotId("live");
-    setShowAi(false);
+    setReportTab("dashboard");
   }, [active]);
 
   const liveReport = useMemo(

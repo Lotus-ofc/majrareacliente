@@ -178,18 +178,19 @@ export function ManageInvoicesDialog({
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="glass-strong max-h-[92vh] overflow-y-auto sm:max-w-3xl"
+        className="glass-strong flex max-h-[92vh] flex-col overflow-hidden p-0 sm:max-w-3xl"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        <DialogHeader>
+        <DialogHeader className="border-b border-border/60 px-6 pb-4 pt-6">
           <DialogTitle>Financeiro — {clientName}</DialogTitle>
           <DialogDescription>
             Gerencie as faturas mensais. O cliente verá e poderá pagar via PIX.
           </DialogDescription>
         </DialogHeader>
 
+        <div className="flex-1 overflow-y-auto px-6 py-4">
         {/* Form */}
         <div className="rounded-xl border border-border bg-card/60 p-4">
           <div className="mb-3 flex items-center justify-between">
@@ -336,8 +337,9 @@ export function ManageInvoicesDialog({
             </ul>
           )}
         </div>
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="border-t border-border/60 bg-background/60 px-6 py-3 backdrop-blur">
           <Button variant="ghost" onClick={onClose}>
             Fechar
           </Button>

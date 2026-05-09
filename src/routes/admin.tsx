@@ -569,41 +569,54 @@ function ManageReportsDialog({
   };
 
   const handlePdfUpload = async (source: ReportSource, file: File) => {
-    if (file.type !== "application/pdf") {
-      toast.error("Envie um arquivo PDF");
+    const name = file.name.toLowerCase();
+    const isPdf = file.type === "application/pdf" || name.endsWith(".pdf");
+    const isCsv = file.type.includes("csv") || name.endsWith(".csv");
+    const isXlsx =
+      name.endsWith(".xlsx") ||
+      name.endsWith(".xls") ||
+      file.type.includes("sheet") ||
+      file.type.includes("excel");
+    if (!isPdf && !isCsv && !isXlsx) {
+      toast.error("Envie um arquivo PDF, CSV ou XLSX");
       return;
     }
     if (file.size > 25 * 1024 * 1024) {
-      toast.error("PDF muito grande (máx 25MB)");
+      toast.error("Arquivo muito grande (máx 25MB)");
       return;
     }
     setParsingSource(source);
-    const path = `${client.id}/${source}.pdf`;
+    const ext = isPdf ? "pdf" : isCsv ? "csv" : "xlsx";
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const path = `${client.id}/${source}-${stamp}.${ext}`;
     try {
       const { error: upErr } = await supabase.storage
         .from("report-pdfs")
-        .upload(path, file, { upsert: true, contentType: "application/pdf" });
+        .upload(path, file, { upsert: true, contentType: file.type || undefined });
       if (upErr) throw upErr;
 
-      toast.info("PDF enviado. Lendo com IA…", { duration: 3000 });
+      toast.info("Arquivo enviado. IA transcrevendo dados…", { duration: 3000 });
 
-      const { data, error } = await supabase.functions.invoke("parse-report-pdf", {
-        body: { client_id: client.id, source, pdf_path: path },
+      const { data, error } = await supabase.functions.invoke("ingest-report", {
+        body: { client_id: client.id, source, file_path: path, file_mime: file.type },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      const extracted = (data?.metrics ?? {}) as Record<string, string>;
+      const layout = (data?.snapshot?.dashboard_layout ?? {}) as { metrics?: Record<string, string> };
+      const extracted = layout.metrics ?? {};
       setMetrics((prev) => ({
         ...prev,
         [source]: { ...(prev[source] ?? {}), ...extracted },
       }));
       setPdfPaths((prev) => ({ ...prev, [source]: path }));
       toast.success(
-        `IA extraiu ${data?.count ?? Object.keys(extracted).length} métrica(s). Revise e salve.`,
+        `Snapshot salvo · ${Object.keys(extracted).length} métrica(s) extraída(s).`,
+        { description: "Gráficos e análise da IA disponíveis para o cliente." },
       );
+      void notifyClient({ clientId: client.id, event: "report.published" });
     } catch (e) {
-      toast.error("Falha ao processar PDF", { description: (e as Error).message });
+      toast.error("Falha ao processar relatório", { description: (e as Error).message });
     } finally {
       setParsingSource(null);
     }

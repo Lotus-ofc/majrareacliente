@@ -84,12 +84,12 @@ export function ManageEditorialDialog({ clientId, clientName, onClose }: Props) 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="glass-strong max-h-[90vh] overflow-hidden sm:max-w-2xl"
+        className="glass-strong flex max-h-[92vh] flex-col overflow-hidden p-0 sm:max-w-2xl"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        <DialogHeader>
+        <DialogHeader className="border-b border-border/60 px-6 pb-4 pt-6">
           <DialogTitle className="flex items-center gap-2">
             <NotebookPen className="h-4 w-4 text-lilac" />
             Calendário Editorial — {clientName}
@@ -99,7 +99,7 @@ export function ManageEditorialDialog({ clientId, clientName, onClose }: Props) 
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 overflow-y-auto pr-1" style={{ maxHeight: "60vh" }}>
+        <div className="flex-1 space-y-3 overflow-y-auto px-6 py-4">
           <Button
             onClick={() => setCreating(true)}
             className="w-full bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] font-medium text-primary-foreground"

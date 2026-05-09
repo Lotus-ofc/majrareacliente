@@ -15,10 +15,12 @@ import {
   Pencil,
   Send,
   AlertCircle,
+  LayoutGrid,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";

@@ -337,8 +337,9 @@ export function ManageInvoicesDialog({
             </ul>
           )}
         </div>
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="border-t border-border/60 bg-background/60 px-6 py-3 backdrop-blur">
           <Button variant="ghost" onClick={onClose}>
             Fechar
           </Button>

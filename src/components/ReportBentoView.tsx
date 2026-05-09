@@ -50,9 +50,9 @@ interface Props {
 }
 
 const PALETTE = [
+  "oklch(0.88 0.27 145)", // neon green
   "oklch(0.62 0.22 305)", // primary purple
   "oklch(0.82 0.12 305)", // lilac
-  "oklch(0.96 0.06 175)", // mint
   "oklch(0.78 0.16 80)",  // amber
   "oklch(0.78 0.16 15)",  // rose
 ];

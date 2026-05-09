@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import {
   CalendarDays,
   Copy,
+  Database,
   FileText,
   KeyRound,
   Loader2,
@@ -727,6 +728,11 @@ function ManageReportsDialog({
                 const sourceMetrics = metrics[s.key] ?? {};
                 return (
                   <TabsContent key={s.key} value={s.key} className="mt-0 space-y-4">
+                    <SnapshotImportBlock
+                      clientId={client.id}
+                      source={s.key}
+                    />
+
                     <PdfImportBlock
                       source={s.key}
                       pdfPath={pdfPaths[s.key] ?? null}
@@ -906,6 +912,141 @@ function PdfImportBlock({
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) onUpload(file);
+            e.target.value = "";
+          }}
+        />
+      </label>
+    </div>
+  );
+}
+
+function SnapshotImportBlock({
+  clientId,
+  source,
+}: {
+  clientId: string;
+  source: ReportSource;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [lastSnapshot, setLastSnapshot] = useState<{ date: string } | null>(null);
+  const inputId = `snapshot-input-${source}`;
+
+  const handle = async (file: File) => {
+    const name = file.name.toLowerCase();
+    const isPdf = file.type === "application/pdf" || name.endsWith(".pdf");
+    const isCsv = file.type.includes("csv") || name.endsWith(".csv");
+    const isXlsx =
+      name.endsWith(".xlsx") ||
+      name.endsWith(".xls") ||
+      file.type.includes("sheet") ||
+      file.type.includes("excel");
+    if (!isPdf && !isCsv && !isXlsx) {
+      toast.error("Envie um arquivo PDF, CSV ou XLSX");
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Arquivo muito grande (máx 25MB)");
+      return;
+    }
+    setBusy(true);
+    const ext = isPdf ? "pdf" : isCsv ? "csv" : "xlsx";
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const path = `${clientId}/snapshots/${source}-${stamp}.${ext}`;
+    try {
+      const { error: upErr } = await supabase.storage
+        .from("report-pdfs")
+        .upload(path, file, { upsert: true, contentType: file.type || undefined });
+      if (upErr) throw upErr;
+
+      toast.info("Arquivo enviado. Analisando com IA…", { duration: 3000 });
+
+      const { data, error } = await supabase.functions.invoke("ingest-report", {
+        body: {
+          client_id: clientId,
+          source,
+          file_path: path,
+          file_mime: file.type,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const snap = data?.snapshot;
+      const date = snap?.snapshot_date ?? new Date().toISOString().slice(0, 10);
+      const [y, m, d] = date.split("-");
+      setLastSnapshot({ date: `${d}/${m}/${y}` });
+      toast.success(`Snapshot ${d}/${m}/${y} salvo no histórico`);
+      void notifyClient({ clientId, event: "report.published" });
+    } catch (e) {
+      toast.error("Falha ao processar relatório", { description: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) void handle(file);
+  };
+
+  return (
+    <div className="rounded-lg border border-mint/30 bg-mint/5 p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <Label className="flex items-center gap-2 text-xs">
+          <Database className="h-3.5 w-3.5 text-mint" />
+          Importar relatório (snapshot histórico)
+        </Label>
+        {lastSnapshot && (
+          <span className="rounded-full bg-mint/15 px-2 py-0.5 text-[10px] font-medium text-mint">
+            ✓ {lastSnapshot.date}
+          </span>
+        )}
+      </div>
+
+      <label
+        htmlFor={inputId}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-4 text-center transition-colors ${
+          dragOver
+            ? "border-mint bg-mint/10"
+            : "border-border bg-background/40 hover:border-mint/50 hover:bg-mint/5"
+        }`}
+      >
+        {busy ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin text-mint" />
+            <p className="text-xs text-muted-foreground">
+              Enviando ao Gemini e gerando snapshot…
+            </p>
+          </>
+        ) : (
+          <>
+            <Upload className="h-5 w-5 text-mint" />
+            <p className="text-xs font-medium text-foreground">
+              PDF, CSV ou Excel do mLabs
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              A IA extrai métricas + análise e salva como snapshot do dia (máx 25MB)
+            </p>
+          </>
+        )}
+        <input
+          id={inputId}
+          type="file"
+          accept=".pdf,.csv,.xlsx,.xls,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          className="hidden"
+          disabled={busy}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void handle(file);
             e.target.value = "";
           }}
         />

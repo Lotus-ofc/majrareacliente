@@ -500,6 +500,19 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
           approving={approvingId === selectedPost.id}
         />
       )}
+
+      {/* Modal: Central de Posts (tabs por status) */}
+      {centralOpen && (
+        <PostsCentralModal
+          posts={posts}
+          now={now}
+          onClose={() => setCentralOpen(false)}
+          onPick={(p) => {
+            setCentralOpen(false);
+            setSelectedPost(p);
+          }}
+        />
+      )}
     </div>
   );
 }

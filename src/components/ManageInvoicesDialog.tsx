@@ -190,6 +190,7 @@ export function ManageInvoicesDialog({
           </DialogDescription>
         </DialogHeader>
 
+        <div className="flex-1 overflow-y-auto px-6 py-4">
         {/* Form */}
         <div className="rounded-xl border border-border bg-card/60 p-4">
           <div className="mb-3 flex items-center justify-between">

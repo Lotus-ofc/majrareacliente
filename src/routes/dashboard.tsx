@@ -221,16 +221,50 @@ function DashboardPage() {
                 {section === "reports" ? currentMeta.label : sectionMeta.label}
               </h1>
             </div>
-            {section === "reports" && fullReportUrl && (
-              <a
-                href={fullReportUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] px-3.5 py-2 text-xs font-medium text-primary-foreground shadow-[0_10px_30px_-10px_oklch(0.42_0.22_305/0.7)] transition-transform hover:scale-[1.02]"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Abrir relatório completo
-              </a>
+            {section === "reports" && (
+              <div className="flex flex-wrap items-center gap-2">
+                {sourceSnapshots.length > 0 && (
+                  <Select value={snapshotId} onValueChange={setSnapshotId}>
+                    <SelectTrigger className="h-9 w-auto min-w-[200px] gap-2 rounded-lg border-border bg-card/60 text-xs">
+                      <History className="h-3.5 w-3.5 text-lilac" />
+                      <SelectValue placeholder="Snapshot" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="live">Atual (ao vivo)</SelectItem>
+                      {sourceSnapshots.map((s) => {
+                        const [y, m, d] = s.snapshot_date.split("-");
+                        return (
+                          <SelectItem key={s.id} value={s.id}>
+                            {`${d}/${m}/${y}`}
+                            {s.period_start && s.period_end ? ` · período salvo` : ""}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                )}
+                {current?.ai_analysis && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAi((v) => !v)}
+                    className="inline-flex h-9 items-center gap-2 rounded-lg border border-mint/40 bg-mint/10 px-3 text-xs font-medium text-mint transition-colors hover:bg-mint/20"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {showAi ? "Ocultar análise IA" : "Análise IA"}
+                  </button>
+                )}
+                {fullReportUrl && (
+                  <a
+                    href={fullReportUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-9 items-center gap-2 rounded-lg bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] px-3.5 text-xs font-medium text-primary-foreground shadow-[0_10px_30px_-10px_oklch(0.42_0.22_305/0.7)] transition-transform hover:scale-[1.02]"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Abrir relatório completo
+                  </a>
+                )}
+              </div>
             )}
           </div>
 

@@ -160,7 +160,7 @@ export function ManagePostsDialog({
     const { data } = await supabase
       .from("editorial_posts")
       .select(
-        "id, scheduled_date, scheduled_time, title, image_url, media_urls, post_format, caption, pending_caption, caption_change_status, status",
+        "id, scheduled_date, scheduled_time, title, image_url, media_urls, post_format, caption, pending_caption, caption_change_status, status, revision_requested, revision_note",
       )
       .eq("client_id", clientId)
       .order("scheduled_date", { ascending: true });
@@ -176,6 +176,8 @@ export function ManagePostsDialog({
       pending_caption?: string | null;
       caption_change_status?: string | null;
       status: string;
+      revision_requested?: boolean | null;
+      revision_note?: string | null;
     }): Post => {
       const mu = Array.isArray(p.media_urls)
         ? (p.media_urls as unknown[]).filter(
@@ -195,6 +197,8 @@ export function ManagePostsDialog({
         pending_caption: p.pending_caption ?? null,
         caption_change_status: (p.caption_change_status ?? "none") as CaptionChangeStatus,
         status: p.status as PostStatus,
+        revision_requested: !!p.revision_requested,
+        revision_note: p.revision_note ?? null,
       };
     });
     setPosts(normalized);

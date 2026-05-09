@@ -257,6 +257,20 @@ export function ManagePostsDialog({
     void fetchPosts();
   };
 
+  const resendForRevision = async (p: Post) => {
+    const { error } = await supabase
+      .from("editorial_posts")
+      .update({ revision_requested: false, revision_note: null })
+      .eq("id", p.id);
+    if (error) {
+      toast.error("Falha ao reenviar", { description: error.message });
+      return;
+    }
+    toast.success("Post reenviado para aprovação do cliente");
+    void notifyClient({ clientId, event: "post.created" });
+    void fetchPosts();
+  };
+
   const cancelEdit = () => {
     setEditingId(null);
     setForm(emptyForm);

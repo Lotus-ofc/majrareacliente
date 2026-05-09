@@ -769,20 +769,25 @@ export function ManagePostsDialog({
           </div>
         </div>
 
-        {/* List */}
+        {/* List grouped by status */}
         <div className="mt-4 space-y-2">
-          <h3 className="text-sm font-semibold">Posts agendados</h3>
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          ) : posts.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
-              Nenhum post criado ainda.
-            </p>
           ) : (
-            <ul className="space-y-2">
-              {posts.map((p) => {
+            (() => {
+              const now = new Date();
+              const grouped: Record<PostStatus, Post[]> = {
+                pending: [],
+                approved: [],
+                published: [],
+              };
+              for (const p of posts) {
+                const display = getDisplayStatus(p.status, p.scheduled_date, p.scheduled_time, now) as PostStatus;
+                grouped[display].push(p);
+              }
+              const renderItem = (p: Post) => {
                 const cover = p.media_urls[0] ?? p.image_url;
                 const isVid = cover ? isVideoUrl(cover) : false;
                 const fmt = FORMAT_OPTIONS.find((o) => o.value === p.post_format);
@@ -795,18 +800,9 @@ export function ManagePostsDialog({
                     <div className="flex min-w-0 flex-1 gap-3">
                       {cover ? (
                         isVid ? (
-                          <video
-                            src={cover}
-                            className="h-14 w-14 flex-shrink-0 rounded-md object-cover"
-                            muted
-                            playsInline
-                          />
+                          <video src={cover} className="h-14 w-14 flex-shrink-0 rounded-md object-cover" muted playsInline />
                         ) : (
-                          <img
-                            src={cover}
-                            alt=""
-                            className="h-14 w-14 flex-shrink-0 rounded-md object-cover"
-                          />
+                          <img src={cover} alt="" className="h-14 w-14 flex-shrink-0 rounded-md object-cover" />
                         )
                       ) : (
                         <div className="h-14 w-14 flex-shrink-0 rounded-md bg-secondary" />
@@ -819,21 +815,20 @@ export function ManagePostsDialog({
                             <Clock className="h-3 w-3" />
                             {formatTimeBR(p.scheduled_time)}
                           </span>
-                          <Badge
-                            className={cn(
-                              "rounded-full border px-2 py-0 text-[10px]",
-                              STATUS_CLS[p.status],
-                            )}
-                          >
+                          <Badge className={cn("rounded-full border px-2 py-0 text-[10px]", STATUS_CLS[p.status])}>
                             {STATUS_OPTIONS.find((s) => s.value === p.status)?.label}
                           </Badge>
                           <span className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/60 px-2 py-0 text-[10px] text-muted-foreground">
                             <FmtIcon className="h-3 w-3" />
                             {fmt?.label}
-                            {p.post_format === "carousel" && (
-                              <span>· {p.media_urls.length}</span>
-                            )}
+                            {p.post_format === "carousel" && <span>· {p.media_urls.length}</span>}
                           </span>
+                          {p.revision_requested && (
+                            <Badge className="rounded-full border border-destructive/40 bg-destructive/15 px-2 py-0 text-[10px] text-destructive">
+                              <AlertCircle className="mr-1 h-3 w-3" />
+                              Cliente pediu alteração
+                            </Badge>
+                          )}
                           {p.caption_change_status === "pending" && (
                             <Badge className="rounded-full border border-[oklch(0.78_0.14_55/0.4)] bg-[oklch(0.78_0.14_55/0.18)] px-2 py-0 text-[10px] text-[oklch(0.85_0.14_70)]">
                               <MessageSquareWarning className="mr-1 h-3 w-3" />
@@ -841,18 +836,34 @@ export function ManagePostsDialog({
                             </Badge>
                           )}
                         </div>
-                        {p.title && (
-                          <p className="mt-1 truncate text-sm font-semibold text-foreground">
-                            {p.title}
-                          </p>
-                        )}
+                        {p.title && <p className="mt-1 truncate text-sm font-semibold text-foreground">{p.title}</p>}
                         <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-foreground/90">
-                          {p.caption || (
-                            <span className="italic text-muted-foreground">Sem legenda</span>
-                          )}
+                          {p.caption || <span className="italic text-muted-foreground">Sem legenda</span>}
                         </p>
 
-                        {/* Caption change suggestion review */}
+                        {p.revision_requested && (
+                          <div className="mt-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2.5">
+                            <div className="mb-1.5 flex items-center justify-between gap-2">
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-destructive">
+                                Pendência aberta pelo cliente
+                              </p>
+                              <Button
+                                size="sm"
+                                onClick={() => resendForRevision(p)}
+                                className="h-7 bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] px-2 text-[11px]"
+                              >
+                                <Send className="mr-1 h-3 w-3" />
+                                Reenviar para aprovação
+                              </Button>
+                            </div>
+                            {p.revision_note && (
+                              <p className="whitespace-pre-wrap text-[12px] leading-relaxed text-foreground/90">
+                                "{p.revision_note}"
+                              </p>
+                            )}
+                          </div>
+                        )}
+
                         {p.caption_change_status === "pending" && p.pending_caption && (
                           <div className="mt-2 rounded-lg border border-[oklch(0.78_0.14_55/0.4)] bg-[oklch(0.78_0.14_55/0.08)] p-2.5">
                             <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -860,21 +871,11 @@ export function ManagePostsDialog({
                                 Cliente sugeriu nova legenda
                               </p>
                               <div className="flex gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 px-2 text-[10px] text-mint hover:bg-mint/10 hover:text-mint"
-                                  onClick={() => approveCaptionChange(p)}
-                                >
+                                <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-mint hover:bg-mint/10 hover:text-mint" onClick={() => approveCaptionChange(p)}>
                                   <ThumbsUp className="mr-1 h-3 w-3" />
                                   Aprovar
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 px-2 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                  onClick={() => rejectCaptionChange(p)}
-                                >
+                                <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => rejectCaptionChange(p)}>
                                   <ThumbsDown className="mr-1 h-3 w-3" />
                                   Rejeitar
                                 </Button>
@@ -891,23 +892,45 @@ export function ManagePostsDialog({
                       <Button size="icon" variant="ghost" onClick={() => startEdit(p)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => remove(p.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
+                      <Button size="icon" variant="ghost" onClick={() => remove(p.id)} className="text-destructive hover:text-destructive">
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </li>
                 );
-              })}
-            </ul>
+              };
+              const renderTab = (list: Post[], emptyLabel: string) =>
+                list.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+                    {emptyLabel}
+                  </p>
+                ) : (
+                  <ul className="space-y-2">{list.map(renderItem)}</ul>
+                );
+              return (
+                <Tabs defaultValue="pending" className="w-full">
+                  <TabsList className="h-auto w-full justify-start gap-1 bg-card/40 p-1 sm:w-fit">
+                    <TabsTrigger value="pending" className="gap-1.5 data-[state=active]:bg-[oklch(0.78_0.14_55/0.18)] data-[state=active]:text-[oklch(0.85_0.14_70)]">
+                      Pendentes <span className="rounded-full bg-background/40 px-1.5 text-[10px]">{grouped.pending.length}</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="approved" className="gap-1.5 data-[state=active]:bg-mint/15 data-[state=active]:text-mint">
+                      Agendados <span className="rounded-full bg-background/40 px-1.5 text-[10px]">{grouped.approved.length}</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="published" className="gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-lilac">
+                      Publicados <span className="rounded-full bg-background/40 px-1.5 text-[10px]">{grouped.published.length}</span>
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="pending" className="mt-3">{renderTab(grouped.pending, "Nenhum post pendente")}</TabsContent>
+                  <TabsContent value="approved" className="mt-3">{renderTab(grouped.approved, "Nenhum post agendado")}</TabsContent>
+                  <TabsContent value="published" className="mt-3">{renderTab(grouped.published, "Nenhum post publicado ainda")}</TabsContent>
+                </Tabs>
+              );
+            })()
           )}
         </div>
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="border-t border-border/60 bg-background/60 px-6 py-3 backdrop-blur">
           <Button variant="ghost" onClick={onClose}>
             Fechar
           </Button>

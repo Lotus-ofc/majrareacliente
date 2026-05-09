@@ -42,15 +42,32 @@ interface ReportRow {
   time_series?: Array<Record<string, string | number>> | null;
 }
 
+interface SnapshotRow {
+  id: string;
+  source: ReportSource;
+  snapshot_date: string;
+  period_start: string | null;
+  period_end: string | null;
+  dashboard_layout: {
+    metrics?: Record<string, string>;
+    previous_metrics?: Record<string, string>;
+    time_series?: Array<Record<string, string | number>>;
+  } | null;
+  ai_analysis: string;
+}
+
 function DashboardPage() {
   const { user, role, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [section, setSection] = useState<PortalSection>("news");
   const [active, setActive] = useState<ReportSource>("overview");
   const [reports, setReports] = useState<ReportRow[]>([]);
+  const [snapshots, setSnapshots] = useState<SnapshotRow[]>([]);
+  const [snapshotId, setSnapshotId] = useState<string>("live");
   const [profile, setProfile] = useState<{ full_name: string; company: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [showAi, setShowAi] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -80,6 +97,15 @@ function DashboardPage() {
         setLoading(false);
       });
     supabase
+      .from("report_snapshots")
+      .select("id, source, snapshot_date, period_start, period_end, dashboard_layout, ai_analysis")
+      .eq("client_id", user.id)
+      .order("snapshot_date", { ascending: false })
+      .then(({ data }) => {
+        if (cancelled) return;
+        setSnapshots((data ?? []) as unknown as SnapshotRow[]);
+      });
+    supabase
       .from("profiles")
       .select("full_name, company")
       .eq("id", user.id)
@@ -93,16 +119,61 @@ function DashboardPage() {
     };
   }, [user]);
 
-  const current = useMemo(
+  // Reset snapshot selection when changing source
+  useEffect(() => {
+    setSnapshotId("live");
+    setShowAi(false);
+  }, [active]);
+
+  const liveReport = useMemo(
     () => reports.find((r) => r.source === active) ?? null,
     [reports, active],
   );
+  const sourceSnapshots = useMemo(
+    () => snapshots.filter((s) => s.source === active),
+    [snapshots, active],
+  );
+  const activeSnapshot = useMemo(
+    () => (snapshotId === "live" ? null : sourceSnapshots.find((s) => s.id === snapshotId) ?? null),
+    [snapshotId, sourceSnapshots],
+  );
+  const current: {
+    metrics: Record<string, string>;
+    previous_metrics: Record<string, string> | null;
+    period_start: string | null;
+    period_end: string | null;
+    time_series: Array<Record<string, string | number>> | null;
+    ai_analysis: string;
+  } | null = useMemo(() => {
+    if (activeSnapshot) {
+      const layout = activeSnapshot.dashboard_layout ?? {};
+      return {
+        metrics: layout.metrics ?? {},
+        previous_metrics: layout.previous_metrics ?? null,
+        period_start: activeSnapshot.period_start,
+        period_end: activeSnapshot.period_end,
+        time_series: layout.time_series ?? null,
+        ai_analysis: activeSnapshot.ai_analysis ?? "",
+      };
+    }
+    if (liveReport) {
+      return {
+        metrics: liveReport.metrics ?? {},
+        previous_metrics: liveReport.previous_metrics ?? null,
+        period_start: liveReport.period_start ?? null,
+        period_end: liveReport.period_end ?? null,
+        time_series: liveReport.time_series ?? null,
+        ai_analysis: "",
+      };
+    }
+    return null;
+  }, [activeSnapshot, liveReport]);
   const currentMeta = SOURCES.find((s) => s.key === active)!;
   const sectionMeta = PORTAL_SECTIONS.find((s) => s.key === section)!;
   const metricDefs = METRICS_BY_SOURCE[active];
   const bentoConfig = REPORT_BENTO[active];
   const metricValues = current?.metrics ?? {};
-  const fullReportUrl = current?.iframe_url?.trim() || null;
+  const fullReportUrl = liveReport?.iframe_url?.trim() || null;
 
   const hasAnyMetric = metricDefs.some(
     (m) => (metricValues[m.key] ?? "").toString().trim().length > 0,

@@ -663,9 +663,12 @@ function ManageReportsDialog({
       }
 
       if (toUpsert.length > 0) {
+        const { getClientAgencyId } = await import("@/lib/agency");
+        const agency_id = await getClientAgencyId(client.id);
+        const withAgency = toUpsert.map((r) => ({ ...r, agency_id }));
         const { error } = await supabase
           .from("client_reports")
-          .upsert(toUpsert, { onConflict: "client_id,source" });
+          .upsert(withAgency, { onConflict: "client_id,source" });
         if (error) throw error;
       }
       toast.success("Relatórios atualizados");

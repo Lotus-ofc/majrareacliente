@@ -39,12 +39,15 @@ import {
   MessageSquareWarning,
   ThumbsUp,
   ThumbsDown,
+  Send,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateBR } from "@/lib/format";
 import { InstagramPreview, type PostFormat } from "./InstagramPreview";
-import { formatTimeBR } from "@/lib/post-status";
+import { formatTimeBR, getDisplayStatus } from "@/lib/post-status";
 import { notifyClient } from "@/lib/notify-admin";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 type PostStatus = "pending" | "approved" | "published";
 type CaptionChangeStatus = "none" | "pending" | "rejected";

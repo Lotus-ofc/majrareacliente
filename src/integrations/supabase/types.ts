@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      agencies: {
+        Row: {
+          branding: Json
+          created_at: string
+          id: string
+          name: string
+          owner_user_id: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          branding?: Json
+          created_at?: string
+          id?: string
+          name: string
+          owner_user_id?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          branding?: Json
+          created_at?: string
+          id?: string
+          name?: string
+          owner_user_id?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_reports: {
         Row: {
           client_id: string
@@ -310,7 +340,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "client"
+      app_role: "admin" | "client" | "agency_admin"
       invoice_status: "pending" | "paid" | "overdue"
       post_format: "single" | "carousel" | "reel"
       post_status: "pending" | "approved" | "published"
@@ -449,7 +479,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "client"],
+      app_role: ["admin", "client", "agency_admin"],
       invoice_status: ["pending", "paid", "overdue"],
       post_format: ["single", "carousel", "reel"],
       post_status: ["pending", "approved", "published"],

@@ -306,6 +306,14 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
               {STATUS_META[s].label}
             </span>
           ))}
+          <Button
+            size="sm"
+            onClick={() => setCentralOpen(true)}
+            className="ml-1 h-8 gap-1.5 bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] px-3 text-[11px] text-primary-foreground shadow-[0_8px_24px_-10px_oklch(0.42_0.22_305/0.7)] transition-transform hover:scale-[1.02]"
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            Central de Posts
+          </Button>
         </div>
       </div>
 

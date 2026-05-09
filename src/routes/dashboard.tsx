@@ -277,7 +277,22 @@ function DashboardPage() {
                 </div>
               </div>
             ) : hasAnyMetric && current ? (
-              <div className="flex-1 lg:min-h-0 lg:overflow-y-auto lg:overflow-x-hidden">
+              <div className="flex-1 space-y-3 lg:min-h-0 lg:overflow-y-auto lg:overflow-x-hidden">
+                {showAi && current.ai_analysis && (
+                  <div className="glass rounded-2xl border border-mint/30 p-4 fade-in">
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-mint/40 bg-mint/15 text-mint">
+                        <Sparkles className="h-3.5 w-3.5" />
+                      </span>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-mint">
+                        Análise da IA
+                      </p>
+                    </div>
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                      {current.ai_analysis}
+                    </div>
+                  </div>
+                )}
                 <ReportBentoView
                   data={{
                     metrics: metricValues,

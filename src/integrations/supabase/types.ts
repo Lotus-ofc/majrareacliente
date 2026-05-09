@@ -156,6 +156,8 @@ export type Database = {
           media_urls: Json
           pending_caption: string | null
           post_format: Database["public"]["Enums"]["post_format"]
+          revision_note: string | null
+          revision_requested: boolean
           scheduled_date: string
           scheduled_time: string
           status: Database["public"]["Enums"]["post_status"]
@@ -173,6 +175,8 @@ export type Database = {
           media_urls?: Json
           pending_caption?: string | null
           post_format?: Database["public"]["Enums"]["post_format"]
+          revision_note?: string | null
+          revision_requested?: boolean
           scheduled_date: string
           scheduled_time?: string
           status?: Database["public"]["Enums"]["post_status"]
@@ -190,6 +194,8 @@ export type Database = {
           media_urls?: Json
           pending_caption?: string | null
           post_format?: Database["public"]["Enums"]["post_format"]
+          revision_note?: string | null
+          revision_requested?: boolean
           scheduled_date?: string
           scheduled_time?: string
           status?: Database["public"]["Enums"]["post_status"]

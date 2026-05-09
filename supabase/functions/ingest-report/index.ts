@@ -396,7 +396,7 @@ REGRAS:
       return json({ error: `Erro ao salvar snapshot: ${insErr.message}` }, 500);
     }
 
-    return json({ snapshot });
+    return json({ snapshot, detected_source: source });
   } catch (e) {
     console.error("ingest-report error", e);
     return json({ error: e instanceof Error ? e.message : "Erro desconhecido" }, 500);

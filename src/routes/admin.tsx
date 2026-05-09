@@ -728,6 +728,11 @@ function ManageReportsDialog({
                 const sourceMetrics = metrics[s.key] ?? {};
                 return (
                   <TabsContent key={s.key} value={s.key} className="mt-0 space-y-4">
+                    <SnapshotImportBlock
+                      clientId={client.id}
+                      source={s.key}
+                    />
+
                     <PdfImportBlock
                       source={s.key}
                       pdfPath={pdfPaths[s.key] ?? null}

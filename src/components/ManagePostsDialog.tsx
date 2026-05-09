@@ -64,6 +64,8 @@ interface Post {
   pending_caption: string | null;
   caption_change_status: CaptionChangeStatus;
   status: PostStatus;
+  revision_requested: boolean;
+  revision_note: string | null;
 }
 
 const STATUS_OPTIONS: Array<{ value: PostStatus; label: string }> = [

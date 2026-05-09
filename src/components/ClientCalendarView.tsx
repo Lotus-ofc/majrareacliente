@@ -15,10 +15,12 @@ import {
   Pencil,
   Send,
   AlertCircle,
+  LayoutGrid,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -105,6 +107,7 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
   });
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [centralOpen, setCentralOpen] = useState(false);
   // Tick every minute so "Publicado" auto-flips when the scheduled time passes
   const [now, setNow] = useState(() => new Date());
 
@@ -303,6 +306,14 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
               {STATUS_META[s].label}
             </span>
           ))}
+          <Button
+            size="sm"
+            onClick={() => setCentralOpen(true)}
+            className="ml-1 h-8 gap-1.5 bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] px-3 text-[11px] text-primary-foreground shadow-[0_8px_24px_-10px_oklch(0.42_0.22_305/0.7)] transition-transform hover:scale-[1.02]"
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            Central de Posts
+          </Button>
         </div>
       </div>
 
@@ -487,6 +498,19 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
           onApprove={() => approve(selectedPost.id)}
           onProposeCaption={(text) => proposeCaption(selectedPost.id, text)}
           approving={approvingId === selectedPost.id}
+        />
+      )}
+
+      {/* Modal: Central de Posts (tabs por status) */}
+      {centralOpen && (
+        <PostsCentralModal
+          posts={posts}
+          now={now}
+          onClose={() => setCentralOpen(false)}
+          onPick={(p) => {
+            setCentralOpen(false);
+            setSelectedPost(p);
+          }}
         />
       )}
     </div>
@@ -812,6 +836,181 @@ function PostDetailModal({
         </div>
       </div>
     </ModalShell>
+  );
+}
+
+function PostsCentralModal({
+  posts,
+  now,
+  onClose,
+  onPick,
+}: {
+  posts: Post[];
+  now: Date;
+  onClose: () => void;
+  onPick: (p: Post) => void;
+}) {
+  const grouped = useMemo(() => {
+    const out: Record<RawPostStatus, Post[]> = { pending: [], approved: [], published: [] };
+    for (const p of posts) {
+      const display = getDisplayStatus(p.status, p.scheduled_date, p.scheduled_time, now);
+      out[display].push(p);
+    }
+    const byDateAsc = (a: Post, b: Post) =>
+      `${a.scheduled_date} ${a.scheduled_time}`.localeCompare(`${b.scheduled_date} ${b.scheduled_time}`);
+    const byDateDesc = (a: Post, b: Post) => -byDateAsc(a, b);
+    out.pending.sort(byDateAsc);
+    out.approved.sort(byDateAsc);
+    out.published.sort(byDateDesc);
+    return out;
+  }, [posts, now]);
+
+  const renderList = (list: Post[], emptyLabel: string) => {
+    if (list.length === 0) {
+      return (
+        <div className="rounded-xl border border-dashed border-border/60 px-4 py-12 text-center text-xs text-muted-foreground">
+          {emptyLabel}
+        </div>
+      );
+    }
+    return (
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {list.map((p) => {
+          const display = getDisplayStatus(p.status, p.scheduled_date, p.scheduled_time, now);
+          const meta = STATUS_META[display];
+          const fmt = FORMAT_META[p.post_format];
+          const FmtIcon = fmt.icon;
+          const thumb = p.media_urls[0] ?? p.image_url;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => onPick(p)}
+              className="group flex items-stretch gap-3 rounded-xl border border-border bg-card/60 p-2.5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card hover:shadow-[0_12px_28px_-12px_oklch(0.42_0.22_305/0.5)]"
+            >
+              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-secondary/60">
+                {thumb ? (
+                  <img
+                    src={thumb}
+                    alt=""
+                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <FmtIcon className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                )}
+                <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-black/60 px-1 py-0.5 text-[8px] text-white backdrop-blur">
+                  <FmtIcon className="h-2.5 w-2.5" />
+                  {fmt.label}
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {p.title || p.caption.slice(0, 42) || "Sem título"}
+                </p>
+                <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">
+                  {p.caption || "—"}
+                </p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <Badge className={cn("rounded-full px-2 py-0 text-[9px]", meta.cls)}>
+                    {meta.label}
+                  </Badge>
+                  <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <CalendarDays className="h-2.5 w-2.5" />
+                    {formatDateBR(p.scheduled_date)}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Clock className="h-2.5 w-2.5" />
+                    {formatTimeBR(p.scheduled_time)}
+                  </span>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 fade-in">
+      <div onClick={onClose} className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+      <div
+        className="glass-strong relative z-10 flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl"
+        style={{
+          background:
+            "linear-gradient(180deg, oklch(0.14 0.006 285 / 0.9), oklch(0.09 0.005 285 / 0.82))",
+          boxShadow:
+            "0 30px 80px -20px oklch(0.42 0.22 305 / 0.4), 0 0 0 1px oklch(1 0 0 / 0.05) inset",
+        }}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 z-20 rounded-full bg-background/60 p-1.5 text-muted-foreground backdrop-blur transition-colors hover:bg-background hover:text-foreground"
+          aria-label="Fechar"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        <div className="border-b border-border/60 px-5 pb-4 pt-5">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Central de Posts
+          </p>
+          <h2 className="text-lg font-semibold text-foreground">
+            Todos os posts agrupados por status
+          </h2>
+        </div>
+
+        <Tabs defaultValue="pending" className="flex flex-1 flex-col overflow-hidden">
+          <TabsList className="mx-5 mt-4 h-auto w-fit justify-start gap-1 bg-card/40 p-1">
+            <TabsTrigger
+              value="pending"
+              className="gap-1.5 data-[state=active]:bg-[oklch(0.78_0.14_55/0.18)] data-[state=active]:text-[oklch(0.85_0.14_70)]"
+            >
+              <span className="h-2 w-2 rounded-full bg-[oklch(0.85_0.14_70)]" />
+              Pendentes
+              <span className="rounded-full bg-background/40 px-1.5 text-[10px]">
+                {grouped.pending.length}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="approved"
+              className="gap-1.5 data-[state=active]:bg-mint/15 data-[state=active]:text-mint"
+            >
+              <span className="h-2 w-2 rounded-full bg-mint" />
+              Agendados
+              <span className="rounded-full bg-background/40 px-1.5 text-[10px]">
+                {grouped.approved.length}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="published"
+              className="gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-lilac"
+            >
+              <span className="h-2 w-2 rounded-full bg-lilac" />
+              Publicados
+              <span className="rounded-full bg-background/40 px-1.5 text-[10px]">
+                {grouped.published.length}
+              </span>
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="flex-1 overflow-y-auto px-5 pb-5 pt-3">
+            <TabsContent value="pending" className="mt-0">
+              {renderList(grouped.pending, "Nenhum post pendente de aprovação")}
+            </TabsContent>
+            <TabsContent value="approved" className="mt-0">
+              {renderList(grouped.approved, "Nenhum post agendado no momento")}
+            </TabsContent>
+            <TabsContent value="published" className="mt-0">
+              {renderList(grouped.published, "Ainda não há posts publicados")}
+            </TabsContent>
+          </div>
+        </Tabs>
+      </div>
+    </div>
   );
 }
 

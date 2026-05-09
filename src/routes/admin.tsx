@@ -705,33 +705,32 @@ function ManageReportsDialog({
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <Tabs defaultValue={SOURCES[0].key} className="w-full">
-            <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0">
-              {SOURCES.map((s) => {
-                const Icon = s.icon;
-                return (
-                  <TabsTrigger
-                    key={s.key}
-                    value={s.key}
-                    className="data-[state=active]:bg-primary/15 data-[state=active]:text-lilac"
-                  >
-                    <Icon className="mr-1.5 h-3.5 w-3.5" />
-                    {s.label}
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
+          <>
+            <UnifiedSnapshotImport clientId={client.id} />
 
-            <div className="mt-4 max-h-[55vh] overflow-y-auto pr-1">
-              {SOURCES.map((s) => {
-                const defs = METRICS_BY_SOURCE[s.key];
-                const sourceMetrics = metrics[s.key] ?? {};
-                return (
-                  <TabsContent key={s.key} value={s.key} className="mt-0 space-y-4">
-                    <SnapshotImportBlock
-                      clientId={client.id}
-                      source={s.key}
-                    />
+            <Tabs defaultValue={SOURCES[0].key} className="w-full">
+              <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0">
+                {SOURCES.map((s) => {
+                  const Icon = s.icon;
+                  return (
+                    <TabsTrigger
+                      key={s.key}
+                      value={s.key}
+                      className="data-[state=active]:bg-primary/15 data-[state=active]:text-lilac"
+                    >
+                      <Icon className="mr-1.5 h-3.5 w-3.5" />
+                      {s.label}
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+
+              <div className="mt-4 max-h-[50vh] overflow-y-auto pr-1">
+                {SOURCES.map((s) => {
+                  const defs = METRICS_BY_SOURCE[s.key];
+                  const sourceMetrics = metrics[s.key] ?? {};
+                  return (
+                    <TabsContent key={s.key} value={s.key} className="mt-0 space-y-4">
 
                     <PdfImportBlock
                       source={s.key}
@@ -790,7 +789,8 @@ function ManageReportsDialog({
                 );
               })}
             </div>
-          </Tabs>
+            </Tabs>
+          </>
         )}
 
         <DialogFooter>
@@ -920,17 +920,11 @@ function PdfImportBlock({
   );
 }
 
-function SnapshotImportBlock({
-  clientId,
-  source,
-}: {
-  clientId: string;
-  source: ReportSource;
-}) {
+function UnifiedSnapshotImport({ clientId }: { clientId: string }) {
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [lastSnapshot, setLastSnapshot] = useState<{ date: string } | null>(null);
-  const inputId = `snapshot-input-${source}`;
+  const [last, setLast] = useState<{ date: string; sourceLabel: string } | null>(null);
+  const inputId = `unified-snapshot-input`;
 
   const handle = async (file: File) => {
     const name = file.name.toLowerCase();
@@ -952,19 +946,21 @@ function SnapshotImportBlock({
     setBusy(true);
     const ext = isPdf ? "pdf" : isCsv ? "csv" : "xlsx";
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const path = `${clientId}/snapshots/${source}-${stamp}.${ext}`;
+    const path = `${clientId}/snapshots/auto-${stamp}.${ext}`;
     try {
       const { error: upErr } = await supabase.storage
         .from("report-pdfs")
         .upload(path, file, { upsert: true, contentType: file.type || undefined });
       if (upErr) throw upErr;
 
-      toast.info("Arquivo enviado. Analisando com IA…", { duration: 3000 });
+      toast.info("Arquivo enviado. IA detectando plataforma e extraindo dados…", {
+        duration: 3500,
+      });
 
       const { data, error } = await supabase.functions.invoke("ingest-report", {
         body: {
           client_id: clientId,
-          source,
+          source: "auto",
           file_path: path,
           file_mime: file.type,
         },
@@ -973,10 +969,15 @@ function SnapshotImportBlock({
       if (data?.error) throw new Error(data.error);
 
       const snap = data?.snapshot;
+      const detected = (data?.detected_source ?? snap?.source) as string | undefined;
+      const meta = SOURCES.find((s) => s.key === detected);
+      const sourceLabel = meta?.label ?? detected ?? "Plataforma";
       const date = snap?.snapshot_date ?? new Date().toISOString().slice(0, 10);
       const [y, m, d] = date.split("-");
-      setLastSnapshot({ date: `${d}/${m}/${y}` });
-      toast.success(`Snapshot ${d}/${m}/${y} salvo no histórico`);
+      setLast({ date: `${d}/${m}/${y}`, sourceLabel });
+      toast.success(`${sourceLabel} · snapshot ${d}/${m}/${y} salvo`, {
+        description: "A IA identificou a plataforma e gerou métricas + análise.",
+      });
       void notifyClient({ clientId, event: "report.published" });
     } catch (e) {
       toast.error("Falha ao processar relatório", { description: (e as Error).message });
@@ -993,15 +994,17 @@ function SnapshotImportBlock({
   };
 
   return (
-    <div className="rounded-lg border border-mint/30 bg-mint/5 p-3">
+    <div className="mb-4 rounded-xl border border-mint/40 bg-gradient-to-br from-mint/10 via-mint/5 to-transparent p-3 shadow-[0_10px_30px_-15px_oklch(0.88_0.27_145/0.4)]">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <Label className="flex items-center gap-2 text-xs">
-          <Database className="h-3.5 w-3.5 text-mint" />
-          Importar relatório (snapshot histórico)
+        <Label className="flex items-center gap-2 text-xs font-semibold">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-mint/20 text-mint">
+            <Database className="h-3.5 w-3.5" />
+          </span>
+          Central de Snapshots — IA detecta a plataforma
         </Label>
-        {lastSnapshot && (
+        {last && (
           <span className="rounded-full bg-mint/15 px-2 py-0.5 text-[10px] font-medium text-mint">
-            ✓ {lastSnapshot.date}
+            ✓ {last.sourceLabel} · {last.date}
           </span>
         )}
       </div>
@@ -1014,27 +1017,27 @@ function SnapshotImportBlock({
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
-        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-4 text-center transition-colors ${
+        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-5 text-center transition-colors ${
           dragOver
             ? "border-mint bg-mint/10"
-            : "border-border bg-background/40 hover:border-mint/50 hover:bg-mint/5"
+            : "border-mint/30 bg-background/30 hover:border-mint/60 hover:bg-mint/5"
         }`}
       >
         {busy ? (
           <>
-            <Loader2 className="h-5 w-5 animate-spin text-mint" />
+            <Loader2 className="h-6 w-6 animate-spin text-mint" />
             <p className="text-xs text-muted-foreground">
-              Enviando ao Gemini e gerando snapshot…
+              IA classificando plataforma + extraindo métricas…
             </p>
           </>
         ) : (
           <>
-            <Upload className="h-5 w-5 text-mint" />
-            <p className="text-xs font-medium text-foreground">
-              PDF, CSV ou Excel do mLabs
+            <Sparkles className="h-6 w-6 text-mint" />
+            <p className="text-sm font-semibold text-foreground">
+              Solte aqui o relatório (PDF, CSV ou XLSX)
             </p>
             <p className="text-[11px] text-muted-foreground">
-              A IA extrai métricas + análise e salva como snapshot do dia (máx 25MB)
+              Um único upload — Gemini identifica se é Meta Ads, GA4, Instagram, TikTok, Google Ads, etc. e salva no histórico (máx 25MB)
             </p>
           </>
         )}

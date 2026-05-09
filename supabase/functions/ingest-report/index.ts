@@ -161,17 +161,20 @@ Deno.serve(async (req) => {
 
     const body = await req.json() as {
       client_id?: string;
-      source?: ReportSource;
+      source?: ReportSource | "auto";
       file_path?: string;
       file_mime?: string;
       period_start?: string;
       period_end?: string;
     };
-    const { client_id, source, file_path, file_mime } = body;
-    if (!client_id || !source || !file_path) {
-      return json({ error: "Parâmetros obrigatórios: client_id, source, file_path" }, 400);
+    const { client_id, file_path, file_mime } = body;
+    let { source } = body;
+    if (!client_id || !file_path) {
+      return json({ error: "Parâmetros obrigatórios: client_id, file_path" }, 400);
     }
-    if (!METRICS[source]) return json({ error: "source inválido" }, 400);
+    if (source && source !== "auto" && !METRICS[source as ReportSource]) {
+      return json({ error: "source inválido" }, 400);
+    }
 
     // Resolve agency_id do cliente.
     const { data: clientProfile, error: profErr } = await admin
@@ -188,8 +191,94 @@ Deno.serve(async (req) => {
     const kind = sniffMime(file_path, file_mime);
     if (kind === "unknown") return json({ error: "Formato não suportado (use PDF, CSV ou XLSX)" }, 400);
 
-    const defs = METRICS[source];
-    const seriesKeys = TIME_SERIES_KEYS[source] ?? [];
+    // Build user content (reused for classification + extraction)
+    const buildContent = (promptText: string): unknown => {
+      if (kind === "pdf") {
+        const dataUrl = `data:application/pdf;base64,${bytesToBase64(buf)}`;
+        return [
+          { type: "text", text: promptText },
+          { type: "image_url", image_url: { url: dataUrl } },
+        ];
+      }
+      const text = tabularToText(buf, kind);
+      return `${promptText}\n\n--- DADOS DO ARQUIVO (${kind.toUpperCase()}) ---\n${text}`;
+    };
+
+    const callGemini = async (
+      systemPrompt: string,
+      userContent: unknown,
+      tool: { name: string; parameters: Record<string, unknown> },
+    ) => {
+      const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-pro",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userContent },
+          ],
+          tools: [{ type: "function", function: { name: tool.name, description: "", parameters: tool.parameters } }],
+          tool_choice: { type: "function", function: { name: tool.name } },
+        }),
+      });
+      if (r.status === 429) throw new Error("RATE_LIMIT");
+      if (r.status === 402) throw new Error("CREDITS");
+      if (!r.ok) {
+        const t = await r.text();
+        console.error("AI error", r.status, t);
+        throw new Error(`IA retornou erro ${r.status}`);
+      }
+      const j = await r.json();
+      const tc = j?.choices?.[0]?.message?.tool_calls?.[0];
+      if (!tc) throw new Error("IA não retornou dados estruturados");
+      return JSON.parse(tc.function.arguments);
+    };
+
+    // Step 1: classify if auto
+    if (!source || source === "auto") {
+      try {
+        const sourceKeys = Object.keys(METRICS) as ReportSource[];
+        const classifyParams = {
+          type: "object",
+          properties: {
+            source: { type: "string", enum: sourceKeys, description: "Plataforma identificada no relatório." },
+            confidence: { type: "string", enum: ["low", "medium", "high"] },
+            reason: { type: "string", description: "Justificativa curta da escolha." },
+          },
+          required: ["source", "confidence", "reason"],
+          additionalProperties: false,
+        };
+        const classifySystem = `Você classifica relatórios de marketing digital. Identifique a plataforma com base no conteúdo.
+Mapeamento:
+- overview: visão consolidada de várias plataformas (mLabs Overview, dashboards executivos)
+- ga4: Google Analytics 4 (sessões, eventos, origem de tráfego)
+- meta_ads: Meta Ads / Facebook Ads / Instagram Ads (anúncios pagos)
+- google_ads: Google Ads (anúncios pagos no Google)
+- tiktok_ads: TikTok Ads (anúncios pagos no TikTok)
+- instagram_organic: Instagram orgânico (alcance, seguidores, reels, stories)
+- tiktok_organic: TikTok orgânico (views, seguidores, vídeos)`;
+        const classifyContent = buildContent("Identifique a qual plataforma este relatório pertence. Retorne UM source.");
+        const cls = await callGemini(classifySystem, classifyContent, {
+          name: "classify_source",
+          parameters: classifyParams,
+        });
+        const detected = cls?.source as ReportSource | undefined;
+        if (!detected || !METRICS[detected]) {
+          return json({ error: "Não foi possível identificar a plataforma do relatório. Verifique o arquivo." }, 422);
+        }
+        source = detected;
+        console.log("auto-detected source:", detected, "confidence:", cls?.confidence);
+      } catch (e) {
+        const msg = (e as Error).message;
+        if (msg === "RATE_LIMIT") return json({ error: "Limite de requisições atingido. Tente novamente em instantes." }, 429);
+        if (msg === "CREDITS") return json({ error: "Créditos da IA esgotados." }, 402);
+        return json({ error: `Falha ao classificar: ${msg}` }, 500);
+      }
+    }
+
+    const defs = METRICS[source as ReportSource];
+    const seriesKeys = TIME_SERIES_KEYS[source as ReportSource] ?? [];
 
     // Build schema properties
     const metricProps: Record<string, unknown> = {};
@@ -239,47 +328,7 @@ REGRAS:
 
     const userPromptText = `Aba/Plataforma: ${source}\n\nMétricas alvo:\n${defs.map(d => `- ${d.key}: ${d.label} (${d.format})`).join("\n")}${seriesKeys.length ? `\n\nSérie diária esperada: ${seriesKeys.join(", ")}` : ""}`;
 
-    let userContent: unknown;
-    if (kind === "pdf") {
-      const dataUrl = `data:application/pdf;base64,${bytesToBase64(buf)}`;
-      userContent = [
-        { type: "text", text: userPromptText },
-        { type: "image_url", image_url: { url: dataUrl } },
-      ];
-    } else {
-      const text = tabularToText(buf, kind);
-      userContent = `${userPromptText}\n\n--- DADOS DO ARQUIVO (${kind.toUpperCase()}) ---\n${text}`;
-    }
-
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userContent },
-        ],
-        tools: [{
-          type: "function",
-          function: { name: "save_snapshot", description: "Salva snapshot estruturado do relatório", parameters },
-        }],
-        tool_choice: { type: "function", function: { name: "save_snapshot" } },
-      }),
-    });
-
-    if (aiResp.status === 429) return json({ error: "Limite de requisições atingido. Tente novamente em instantes." }, 429);
-    if (aiResp.status === 402) return json({ error: "Créditos da IA esgotados. Adicione créditos em Settings > Workspace." }, 402);
-    if (!aiResp.ok) {
-      const t = await aiResp.text();
-      console.error("AI error", aiResp.status, t);
-      return json({ error: `IA retornou erro ${aiResp.status}` }, 500);
-    }
-
-    const aiData = await aiResp.json();
-    const toolCall = aiData?.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) return json({ error: "IA não retornou dados estruturados" }, 500);
-    const args = JSON.parse(toolCall.function.arguments) as {
+    let args: {
       period_start?: string;
       period_end?: string;
       metrics?: Record<string, string>;
@@ -287,6 +336,17 @@ REGRAS:
       time_series?: Array<Record<string, unknown>>;
       ai_analysis?: string;
     };
+    try {
+      args = await callGemini(systemPrompt, buildContent(userPromptText), {
+        name: "save_snapshot",
+        parameters,
+      });
+    } catch (e) {
+      const msg = (e as Error).message;
+      if (msg === "RATE_LIMIT") return json({ error: "Limite de requisições atingido. Tente novamente em instantes." }, 429);
+      if (msg === "CREDITS") return json({ error: "Créditos da IA esgotados." }, 402);
+      return json({ error: msg }, 500);
+    }
 
     const cleanedMetrics: Record<string, string> = {};
     const cleanedPrev: Record<string, string> = {};
@@ -336,7 +396,7 @@ REGRAS:
       return json({ error: `Erro ao salvar snapshot: ${insErr.message}` }, 500);
     }
 
-    return json({ snapshot });
+    return json({ snapshot, detected_source: source });
   } catch (e) {
     console.error("ingest-report error", e);
     return json({ error: e instanceof Error ? e.message : "Erro desconhecido" }, 500);

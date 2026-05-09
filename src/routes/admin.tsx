@@ -705,33 +705,32 @@ function ManageReportsDialog({
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <Tabs defaultValue={SOURCES[0].key} className="w-full">
-            <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0">
-              {SOURCES.map((s) => {
-                const Icon = s.icon;
-                return (
-                  <TabsTrigger
-                    key={s.key}
-                    value={s.key}
-                    className="data-[state=active]:bg-primary/15 data-[state=active]:text-lilac"
-                  >
-                    <Icon className="mr-1.5 h-3.5 w-3.5" />
-                    {s.label}
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
+          <>
+            <UnifiedSnapshotImport clientId={client.id} />
 
-            <div className="mt-4 max-h-[55vh] overflow-y-auto pr-1">
-              {SOURCES.map((s) => {
-                const defs = METRICS_BY_SOURCE[s.key];
-                const sourceMetrics = metrics[s.key] ?? {};
-                return (
-                  <TabsContent key={s.key} value={s.key} className="mt-0 space-y-4">
-                    <SnapshotImportBlock
-                      clientId={client.id}
-                      source={s.key}
-                    />
+            <Tabs defaultValue={SOURCES[0].key} className="w-full">
+              <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0">
+                {SOURCES.map((s) => {
+                  const Icon = s.icon;
+                  return (
+                    <TabsTrigger
+                      key={s.key}
+                      value={s.key}
+                      className="data-[state=active]:bg-primary/15 data-[state=active]:text-lilac"
+                    >
+                      <Icon className="mr-1.5 h-3.5 w-3.5" />
+                      {s.label}
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+
+              <div className="mt-4 max-h-[50vh] overflow-y-auto pr-1">
+                {SOURCES.map((s) => {
+                  const defs = METRICS_BY_SOURCE[s.key];
+                  const sourceMetrics = metrics[s.key] ?? {};
+                  return (
+                    <TabsContent key={s.key} value={s.key} className="mt-0 space-y-4">
 
                     <PdfImportBlock
                       source={s.key}

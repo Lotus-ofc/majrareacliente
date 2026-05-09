@@ -13,7 +13,14 @@ import { SOURCES, type ReportSource } from "@/lib/sources";
 import { METRICS_BY_SOURCE } from "@/lib/metrics";
 import { REPORT_BENTO } from "@/lib/report-bento";
 import { PORTAL_SECTIONS, type PortalSection } from "@/lib/portal-sections";
-import { ExternalLink, FileWarning, Loader2 } from "lucide-react";
+import { ExternalLink, FileWarning, Loader2, Sparkles, History } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({

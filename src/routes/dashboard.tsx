@@ -224,36 +224,34 @@ function DashboardPage() {
             </div>
             {section === "reports" && (
               <div className="flex flex-wrap items-center gap-2">
-                {sourceSnapshots.length > 0 && (
-                  <Select value={snapshotId} onValueChange={setSnapshotId}>
-                    <SelectTrigger className="h-9 w-auto min-w-[200px] gap-2 rounded-lg border-border bg-card/60 text-xs">
-                      <History className="h-3.5 w-3.5 text-lilac" />
-                      <SelectValue placeholder="Snapshot" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="live">Atual (ao vivo)</SelectItem>
-                      {sourceSnapshots.map((s) => {
-                        const [y, m, d] = s.snapshot_date.split("-");
-                        return (
-                          <SelectItem key={s.id} value={s.id}>
-                            {`${d}/${m}/${y}`}
-                            {s.period_start && s.period_end ? ` · período salvo` : ""}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                )}
-                {current?.ai_analysis && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAi((v) => !v)}
-                    className="inline-flex h-9 items-center gap-2 rounded-lg border border-mint/40 bg-mint/10 px-3 text-xs font-medium text-mint transition-colors hover:bg-mint/20"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    {showAi ? "Ocultar análise IA" : "Análise IA"}
-                  </button>
-                )}
+                <Select
+                  value={snapshotId}
+                  onValueChange={setSnapshotId}
+                  disabled={sourceSnapshots.length === 0}
+                >
+                  <SelectTrigger className="h-9 w-auto min-w-[200px] gap-2 rounded-lg border-border bg-card/60 text-xs disabled:opacity-60">
+                    <History className="h-3.5 w-3.5 text-lilac" />
+                    <SelectValue
+                      placeholder={
+                        sourceSnapshots.length === 0
+                          ? "Sem snapshots ainda"
+                          : "Snapshot"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="live">Atual (ao vivo)</SelectItem>
+                    {sourceSnapshots.map((s) => {
+                      const [y, m, d] = s.snapshot_date.split("-");
+                      return (
+                        <SelectItem key={s.id} value={s.id}>
+                          {`${d}/${m}/${y}`}
+                          {s.period_start && s.period_end ? ` · período salvo` : ""}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
                 {fullReportUrl && (
                   <a
                     href={fullReportUrl}
@@ -278,36 +276,87 @@ function DashboardPage() {
                 </div>
               </div>
             ) : hasAnyMetric && current ? (
-              <div className="flex-1 space-y-3 lg:min-h-0 lg:overflow-y-auto lg:overflow-x-hidden">
-                {showAi && current.ai_analysis && (
-                  <div className="glass rounded-2xl border border-mint/30 p-4 fade-in">
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-mint/40 bg-mint/15 text-mint">
-                        <Sparkles className="h-3.5 w-3.5" />
-                      </span>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-mint">
-                        Análise da IA
-                      </p>
+              <Tabs
+                value={reportTab}
+                onValueChange={(v) => setReportTab(v as "dashboard" | "ai")}
+                className="flex flex-1 flex-col gap-3 lg:min-h-0"
+              >
+                <TabsList className="h-auto w-full justify-start gap-1 self-start bg-card/40 p-1 sm:w-auto">
+                  <TabsTrigger
+                    value="dashboard"
+                    className="gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-lilac"
+                  >
+                    <LayoutDashboard className="h-3.5 w-3.5" />
+                    Dashboard
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="ai"
+                    className="gap-1.5 data-[state=active]:bg-mint/15 data-[state=active]:text-mint"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Análise da IA
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent
+                  value="dashboard"
+                  className="mt-0 flex-1 lg:min-h-0 lg:overflow-y-auto lg:overflow-x-hidden"
+                >
+                  <ReportBentoView
+                    data={{
+                      metrics: metricValues,
+                      previous_metrics: current.previous_metrics ?? null,
+                      period_start: current.period_start ?? null,
+                      period_end: current.period_end ?? null,
+                      time_series: current.time_series ?? null,
+                    }}
+                    metricDefs={metricDefs}
+                    config={bentoConfig}
+                    sourceLabel={currentMeta.label}
+                    SourceIcon={currentMeta.icon}
+                  />
+                </TabsContent>
+
+                <TabsContent
+                  value="ai"
+                  className="mt-0 flex-1 lg:min-h-0 lg:overflow-y-auto"
+                >
+                  {current.ai_analysis ? (
+                    <div className="glass rounded-2xl border border-mint/30 p-5 fade-in">
+                      <div className="mb-3 flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-mint/40 bg-mint/15 text-mint">
+                          <Sparkles className="h-4 w-4" />
+                        </span>
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-mint">
+                            Análise da IA
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Leitura qualitativa do período por IA, atrelada a este snapshot
+                          </p>
+                        </div>
+                      </div>
+                      <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                        {current.ai_analysis}
+                      </div>
                     </div>
-                    <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                      {current.ai_analysis}
+                  ) : (
+                    <div className="glass flex h-full items-center justify-center rounded-2xl py-16 fade-in">
+                      <div className="max-w-sm px-6 text-center text-muted-foreground">
+                        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-mint/10">
+                          <Sparkles className="h-5 w-5 text-mint" />
+                        </div>
+                        <p className="text-sm font-medium text-foreground">
+                          Sem análise da IA neste período
+                        </p>
+                        <p className="mt-1 text-xs">
+                          A análise é gerada automaticamente quando o gestor importa um relatório (PDF/CSV/XLSX) na Central de Snapshots.
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
-                <ReportBentoView
-                  data={{
-                    metrics: metricValues,
-                    previous_metrics: current.previous_metrics ?? null,
-                    period_start: current.period_start ?? null,
-                    period_end: current.period_end ?? null,
-                    time_series: current.time_series ?? null,
-                  }}
-                  metricDefs={metricDefs}
-                  config={bentoConfig}
-                  sourceLabel={currentMeta.label}
-                  SourceIcon={currentMeta.icon}
-                />
-              </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             ) : (
               <div className="glass flex flex-1 items-center justify-center rounded-2xl py-24 fade-in lg:min-h-0">
                 <div className="max-w-sm px-6 text-center text-muted-foreground">

@@ -141,9 +141,14 @@ export function ManageInvoicesDialog({
       pix_key: form.pix_key.trim() || null,
     };
     const previous = editingId ? invoices.find((i) => i.id === editingId) : null;
-    const { error } = editingId
-      ? await supabase.from("invoices").update(payload).eq("id", editingId)
-      : await supabase.from("invoices").insert(payload);
+    let error;
+    if (editingId) {
+      ({ error } = await supabase.from("invoices").update(payload).eq("id", editingId));
+    } else {
+      const { getClientAgencyId } = await import("@/lib/agency");
+      const agency_id = await getClientAgencyId(clientId);
+      ({ error } = await supabase.from("invoices").insert({ ...payload, agency_id }));
+    }
     setSubmitting(false);
     if (error) {
       toast.error("Erro ao salvar", { description: error.message });

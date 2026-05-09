@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json() as {
       client_id?: string;
-      source?: ReportSource;
+      source?: ReportSource | "auto";
       file_path?: string;
       file_mime?: string;
       period_start?: string;

@@ -789,7 +789,8 @@ function ManageReportsDialog({
                 );
               })}
             </div>
-          </Tabs>
+            </Tabs>
+          </>
         )}
 
         <DialogFooter>

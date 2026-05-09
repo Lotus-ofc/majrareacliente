@@ -14,8 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      agencies: {
+        Row: {
+          branding: Json
+          created_at: string
+          id: string
+          name: string
+          owner_user_id: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          branding?: Json
+          created_at?: string
+          id?: string
+          name: string
+          owner_user_id?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          branding?: Json
+          created_at?: string
+          id?: string
+          name?: string
+          owner_user_id?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_reports: {
         Row: {
+          agency_id: string
           client_id: string
           created_at: string
           id: string
@@ -30,6 +61,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agency_id: string
           client_id: string
           created_at?: string
           id?: string
@@ -44,6 +76,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agency_id?: string
           client_id?: string
           created_at?: string
           id?: string
@@ -57,10 +90,19 @@ export type Database = {
           time_series?: Json
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "client_reports_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       editorial_notes: {
         Row: {
+          agency_id: string
           client_id: string
           color: string
           content: string
@@ -71,6 +113,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agency_id: string
           client_id: string
           color?: string
           content?: string
@@ -81,6 +124,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agency_id?: string
           client_id?: string
           color?: string
           content?: string
@@ -90,10 +134,19 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "editorial_notes_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       editorial_posts: {
         Row: {
+          agency_id: string
           caption: string
           caption_change_status: string
           client_id: string
@@ -110,6 +163,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agency_id: string
           caption?: string
           caption_change_status?: string
           client_id: string
@@ -126,6 +180,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agency_id?: string
           caption?: string
           caption_change_status?: string
           client_id?: string
@@ -141,10 +196,19 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "editorial_posts_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoices: {
         Row: {
+          agency_id: string
           amount_cents: number
           client_id: string
           created_at: string
@@ -156,6 +220,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agency_id: string
           amount_cents?: number
           client_id: string
           created_at?: string
@@ -167,6 +232,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agency_id?: string
           amount_cents?: number
           client_id?: string
           created_at?: string
@@ -177,11 +243,20 @@ export type Database = {
           status?: Database["public"]["Enums"]["invoice_status"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "invoices_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
           actor_id: string | null
+          agency_id: string | null
           body: string
           client_id: string | null
           created_at: string
@@ -194,6 +269,7 @@ export type Database = {
         }
         Insert: {
           actor_id?: string | null
+          agency_id?: string | null
           body?: string
           client_id?: string | null
           created_at?: string
@@ -206,6 +282,7 @@ export type Database = {
         }
         Update: {
           actor_id?: string | null
+          agency_id?: string | null
           body?: string
           client_id?: string | null
           created_at?: string
@@ -216,10 +293,19 @@ export type Database = {
           url?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notifications_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
+          agency_id: string
           company: string | null
           created_at: string
           full_name: string
@@ -228,6 +314,7 @@ export type Database = {
           whatsapp_url: string | null
         }
         Insert: {
+          agency_id: string
           company?: string | null
           created_at?: string
           full_name?: string
@@ -236,6 +323,7 @@ export type Database = {
           whatsapp_url?: string | null
         }
         Update: {
+          agency_id?: string
           company?: string | null
           created_at?: string
           full_name?: string
@@ -243,7 +331,15 @@ export type Database = {
           updated_at?: string
           whatsapp_url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_subscriptions: {
         Row: {
@@ -278,6 +374,62 @@ export type Database = {
         }
         Relationships: []
       }
+      report_snapshots: {
+        Row: {
+          agency_id: string
+          ai_analysis: string
+          client_id: string
+          created_at: string
+          dashboard_layout: Json
+          id: string
+          pdf_path: string | null
+          period_end: string | null
+          period_start: string | null
+          raw_data: Json
+          snapshot_date: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          ai_analysis?: string
+          client_id: string
+          created_at?: string
+          dashboard_layout?: Json
+          id?: string
+          pdf_path?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          raw_data?: Json
+          snapshot_date?: string
+          source: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          ai_analysis?: string
+          client_id?: string
+          created_at?: string
+          dashboard_layout?: Json
+          id?: string
+          pdf_path?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          raw_data?: Json
+          snapshot_date?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_snapshots_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -301,6 +453,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_agency_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -308,9 +461,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_agency_member: {
+        Args: { _agency_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      app_role: "admin" | "client"
+      app_role: "admin" | "client" | "agency_admin"
       invoice_status: "pending" | "paid" | "overdue"
       post_format: "single" | "carousel" | "reel"
       post_status: "pending" | "approved" | "published"
@@ -449,7 +606,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "client"],
+      app_role: ["admin", "client", "agency_admin"],
       invoice_status: ["pending", "paid", "overdue"],
       post_format: ["single", "carousel", "reel"],
       post_status: ["pending", "approved", "published"],

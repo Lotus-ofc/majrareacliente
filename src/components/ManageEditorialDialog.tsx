@@ -222,8 +222,11 @@ function NoteFormDialog({
       }
       toast.success("Anotação atualizada");
     } else {
+      const { getClientAgencyId } = await import("@/lib/agency");
+      const agency_id = await getClientAgencyId(clientId);
       const { error } = await supabase.from("editorial_notes").insert({
         client_id: clientId,
+        agency_id,
         note_date: date,
         title,
         content,

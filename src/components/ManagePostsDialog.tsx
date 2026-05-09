@@ -361,9 +361,14 @@ export function ManagePostsDialog({
       caption: form.caption,
       status: form.status,
     };
-    const { error } = editingId
-      ? await supabase.from("editorial_posts").update(payload).eq("id", editingId)
-      : await supabase.from("editorial_posts").insert(payload);
+    let error;
+    if (editingId) {
+      ({ error } = await supabase.from("editorial_posts").update(payload).eq("id", editingId));
+    } else {
+      const { getClientAgencyId } = await import("@/lib/agency");
+      const agency_id = await getClientAgencyId(clientId);
+      ({ error } = await supabase.from("editorial_posts").insert({ ...payload, agency_id }));
+    }
     setSubmitting(false);
     if (error) {
       toast.error("Erro ao salvar", { description: error.message });

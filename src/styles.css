@@ -62,8 +62,8 @@
   --primary: oklch(0.42 0.22 305);            /* #7000ad deep purple */
   --primary-foreground: oklch(0.98 0.01 285);
   --lilac: oklch(0.82 0.12 305);              /* #d6a3ff */
-  --mint: oklch(0.96 0.06 175);               /* #d5fffa */
-  --mint-foreground: oklch(0.18 0.01 285);
+  --mint: oklch(0.88 0.27 145);               /* neon green #39ff8c */
+  --mint-foreground: oklch(0.14 0.02 145);
 
   /* Surfaces */
   --secondary: oklch(0.16 0.005 285);

@@ -107,6 +107,7 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
   });
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [centralOpen, setCentralOpen] = useState(false);
   // Tick every minute so "Publicado" auto-flips when the scheduled time passes
   const [now, setNow] = useState(() => new Date());
 

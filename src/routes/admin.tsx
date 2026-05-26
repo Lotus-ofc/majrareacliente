@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import {
   CalendarDays,
   Copy,
-  Database,
+  FileText,
   FileText,
   KeyRound,
   Loader2,

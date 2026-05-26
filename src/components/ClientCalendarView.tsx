@@ -122,7 +122,7 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
     const { data } = await supabase
       .from("editorial_posts")
       .select(
-        "id, scheduled_date, scheduled_time, title, image_url, media_urls, post_format, caption, pending_caption, caption_change_status, status",
+        "id, scheduled_date, scheduled_time, title, image_url, media_urls, post_format, caption, pending_caption, caption_change_status, status, revision_requested, revision_note",
       )
       .eq("client_id", clientId)
       .order("scheduled_date", { ascending: true });
@@ -139,6 +139,8 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
       pending_caption?: string | null;
       caption_change_status?: string | null;
       status: string;
+      revision_requested?: boolean | null;
+      revision_note?: string | null;
     }) => {
       const mu = Array.isArray(p.media_urls)
         ? (p.media_urls as unknown[]).filter(
@@ -158,6 +160,8 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
         pending_caption: p.pending_caption ?? null,
         caption_change_status: (p.caption_change_status ?? "none") as CaptionChangeStatus,
         status: p.status as RawPostStatus,
+        revision_requested: !!p.revision_requested,
+        revision_note: p.revision_note ?? null,
       } as Post;
     });
     setPosts(normalized);

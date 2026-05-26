@@ -721,50 +721,62 @@ function ManageReportsDialog({
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="glass-strong max-h-[90vh] sm:max-w-3xl"
+        className="glass-strong flex max-h-[90vh] flex-col gap-0 p-0 sm:max-w-3xl"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        <DialogHeader>
+        <DialogHeader className="flex-shrink-0 border-b border-border/60 px-6 pb-4 pt-6">
           <DialogTitle>Relatórios — {client.full_name || client.company}</DialogTitle>
           <DialogDescription>
-            Preencha as métricas de cada fonte e (opcional) o link do relatório
-            completo no mLabs.
+            Importe um relatório (PDF/CSV/XLSX) por fonte ou preencha as métricas manualmente.
           </DialogDescription>
         </DialogHeader>
 
         {loading ? (
-          <div className="flex items-center justify-center py-10">
+          <div className="flex flex-1 items-center justify-center py-10">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <>
-            <UnifiedSnapshotImport clientId={client.id} />
+          <Tabs defaultValue={SOURCES[0].key} className="flex min-h-0 w-full flex-1 flex-col px-6 pt-4">
+            <TabsList className="flex h-auto w-full flex-shrink-0 flex-wrap justify-start gap-1 bg-transparent p-0">
+              {SOURCES.map((s) => {
+                const Icon = s.icon;
+                return (
+                  <TabsTrigger
+                    key={s.key}
+                    value={s.key}
+                    className="data-[state=active]:bg-primary/15 data-[state=active]:text-lilac"
+                  >
+                    <Icon className="mr-1.5 h-3.5 w-3.5" />
+                    {s.label}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
 
-            <Tabs defaultValue={SOURCES[0].key} className="w-full">
-              <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0">
-                {SOURCES.map((s) => {
-                  const Icon = s.icon;
-                  return (
-                    <TabsTrigger
-                      key={s.key}
-                      value={s.key}
-                      className="data-[state=active]:bg-primary/15 data-[state=active]:text-lilac"
-                    >
-                      <Icon className="mr-1.5 h-3.5 w-3.5" />
-                      {s.label}
-                    </TabsTrigger>
-                  );
-                })}
-              </TabsList>
-
-              <div className="mt-4 max-h-[50vh] overflow-y-auto pr-1">
-                {SOURCES.map((s) => {
-                  const defs = METRICS_BY_SOURCE[s.key];
-                  const sourceMetrics = metrics[s.key] ?? {};
-                  return (
-                    <TabsContent key={s.key} value={s.key} className="mt-0 space-y-4">
+            <div className="mt-4 flex-1 overflow-y-auto pr-1">
+              {SOURCES.map((s) => {
+                const defs = METRICS_BY_SOURCE[s.key];
+                const sourceMetrics = metrics[s.key] ?? {};
+                const hasData =
+                  (urls[s.key] ?? "").trim().length > 0 ||
+                  Object.values(sourceMetrics).some((v) => (v ?? "").toString().trim().length > 0) ||
+                  !!pdfPaths[s.key];
+                return (
+                  <TabsContent key={s.key} value={s.key} className="mt-0 space-y-4">
+                    <div className="flex items-center justify-end">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={!hasData}
+                        onClick={() => clearSource(s.key)}
+                        className="h-7 gap-1.5 text-[11px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Limpar dados desta fonte
+                      </Button>
+                    </div>
 
                     <PdfImportBlock
                       source={s.key}
@@ -823,11 +835,10 @@ function ManageReportsDialog({
                 );
               })}
             </div>
-            </Tabs>
-          </>
+          </Tabs>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0 border-t border-border/60 bg-background/80 px-6 py-4 backdrop-blur">
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>

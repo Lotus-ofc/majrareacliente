@@ -120,11 +120,12 @@ function DashboardPage() {
     };
   }, [user]);
 
-  // Reset snapshot selection when changing source
+  // When source changes, default to latest snapshot of that source (if any)
   useEffect(() => {
-    setSnapshotId("live");
+    const latest = snapshots.find((s) => s.source === active);
+    setSnapshotId(latest ? latest.id : "live");
     setReportTab("dashboard");
-  }, [active]);
+  }, [active, snapshots]);
 
   const liveReport = useMemo(
     () => reports.find((r) => r.source === active) ?? null,

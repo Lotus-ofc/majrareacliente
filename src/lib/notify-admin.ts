@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type PushEvent =
   | "post.created"
   | "post.caption_change"
+  | "post.revision_requested"
   | "invoice.created"
   | "invoice.paid"
   | "editorial.note"

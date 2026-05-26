@@ -20,7 +20,6 @@ import {
   CalendarDays,
   Copy,
   FileText,
-  FileText,
   KeyRound,
   Loader2,
   NotebookPen,

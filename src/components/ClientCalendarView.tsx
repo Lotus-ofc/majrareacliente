@@ -538,6 +538,7 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
           onClose={() => setSelectedPost(null)}
           onApprove={() => approve(selectedPost.id)}
           onProposeCaption={(text) => proposeCaption(selectedPost.id, text)}
+          onRequestRevision={(note) => requestRevision(selectedPost.id, note)}
           approving={approvingId === selectedPost.id}
         />
       )}

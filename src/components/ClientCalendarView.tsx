@@ -662,6 +662,7 @@ function PostDetailModal({
   onClose,
   onApprove,
   onProposeCaption,
+  onRequestRevision,
   approving,
 }: {
   post: Post;
@@ -670,6 +671,7 @@ function PostDetailModal({
   onClose: () => void;
   onApprove: () => void;
   onProposeCaption: (text: string) => Promise<boolean>;
+  onRequestRevision: (note: string) => Promise<boolean>;
   approving: boolean;
 }) {
   const displayStatus = getDisplayStatus(post.status, post.scheduled_date, post.scheduled_time, now);
@@ -681,14 +683,30 @@ function PostDetailModal({
   const [draftCaption, setDraftCaption] = useState(post.caption);
   const [submittingCaption, setSubmittingCaption] = useState(false);
 
+  const [revisionOpen, setRevisionOpen] = useState(false);
+  const [revisionDraft, setRevisionDraft] = useState("");
+  const [submittingRevision, setSubmittingRevision] = useState(false);
+
   // Sync draft when switching posts
   useEffect(() => {
     setDraftCaption(post.caption);
     setEditing(false);
+    setRevisionOpen(false);
+    setRevisionDraft("");
   }, [post.id, post.caption]);
 
   const captionPending = post.caption_change_status === "pending";
   const captionRejected = post.caption_change_status === "rejected";
+
+  const submitRevision = async () => {
+    setSubmittingRevision(true);
+    const ok = await onRequestRevision(revisionDraft);
+    setSubmittingRevision(false);
+    if (ok) {
+      setRevisionOpen(false);
+      setRevisionDraft("");
+    }
+  };
 
   const submitCaption = async () => {
     if (draftCaption.trim() === post.caption.trim()) {

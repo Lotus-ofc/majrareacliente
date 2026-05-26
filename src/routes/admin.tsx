@@ -639,6 +639,27 @@ function ManageReportsDialog({
     }
   };
 
+  const clearSource = async (source: ReportSource) => {
+    if (!confirm(`Limpar todos os dados de ${SOURCES.find((s) => s.key === source)?.label}? Isto remove métricas, URL e PDF salvos.`)) return;
+    const path = pdfPaths[source];
+    try {
+      if (path) {
+        await supabase.storage.from("report-pdfs").remove([path]).catch(() => {});
+      }
+      await supabase
+        .from("client_reports")
+        .delete()
+        .eq("client_id", client.id)
+        .eq("source", source);
+      setUrls((prev) => ({ ...prev, [source]: "" }));
+      setMetrics((prev) => ({ ...prev, [source]: {} }));
+      setPdfPaths((prev) => ({ ...prev, [source]: null }));
+      toast.success("Dados da fonte limpos");
+    } catch (e) {
+      toast.error("Erro ao limpar", { description: (e as Error).message });
+    }
+  };
+
   const save = async () => {
     setSaving(true);
     try {

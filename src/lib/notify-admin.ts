@@ -29,6 +29,11 @@ const DEFAULT_COPY: Record<PushEvent, { title: string; body: string; url: string
     body: "O cliente sugeriu uma alteração na legenda de um post.",
     url: "/admin",
   },
+  "post.revision_requested": {
+    title: "Solicitação de alteração em post",
+    body: "O cliente pediu ajustes em um post pendente. Abra para revisar.",
+    url: "/admin",
+  },
   "invoice.created": {
     title: "Nova fatura disponível",
     body: "Uma nova fatura foi gerada. Confira os detalhes no portal.",

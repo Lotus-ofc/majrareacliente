@@ -763,21 +763,87 @@ function PostDetailModal({
 
         {/* Botão de aprovação logo abaixo */}
         <div className="space-y-3 px-5 pb-5 pt-4">
-          {post.status === "pending" && (
-            <Button
-              onClick={onApprove}
-              disabled={approving}
-              className="w-full bg-mint text-mint-foreground shadow-[0_10px_30px_-10px_oklch(0.96_0.06_175/0.7)] transition-transform hover:scale-[1.01] hover:bg-mint/90"
-            >
-              {approving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Check className="mr-1.5 h-4 w-4" />
-                  Aprovar Conteúdo
-                </>
+          {post.status === "pending" && !post.revision_requested && !revisionOpen && (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+              <Button
+                onClick={onApprove}
+                disabled={approving}
+                className="w-full bg-mint text-mint-foreground shadow-[0_10px_30px_-10px_oklch(0.96_0.06_175/0.7)] transition-transform hover:scale-[1.01] hover:bg-mint/90"
+              >
+                {approving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Check className="mr-1.5 h-4 w-4" />
+                    Aprovar Conteúdo
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setRevisionOpen(true)}
+                className="border-[oklch(0.78_0.14_55/0.5)] text-[oklch(0.85_0.14_70)] hover:bg-[oklch(0.78_0.14_55/0.1)] hover:text-[oklch(0.85_0.14_70)]"
+              >
+                <AlertCircle className="mr-1.5 h-4 w-4" />
+                Solicitar alteração
+              </Button>
+            </div>
+          )}
+
+          {post.status === "pending" && revisionOpen && (
+            <div className="space-y-2 rounded-xl border border-[oklch(0.78_0.14_55/0.4)] bg-[oklch(0.78_0.14_55/0.08)] p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-[oklch(0.85_0.14_70)]">
+                O que precisa ser alterado?
+              </Label>
+              <Textarea
+                rows={4}
+                value={revisionDraft}
+                onChange={(e) => setRevisionDraft(e.target.value)}
+                placeholder="Ex: trocar a imagem principal, ajustar o tom da legenda, mudar a data…"
+                className="text-sm"
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setRevisionOpen(false);
+                    setRevisionDraft("");
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={submitRevision}
+                  disabled={submittingRevision || !revisionDraft.trim()}
+                  className="bg-[oklch(0.78_0.14_55)] text-[oklch(0.18_0.04_55)] hover:bg-[oklch(0.74_0.14_55)]"
+                >
+                  {submittingRevision ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      <Send className="mr-1 h-3 w-3" />
+                      Enviar pedido
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {post.status === "pending" && post.revision_requested && (
+            <div className="space-y-1.5 rounded-xl border border-[oklch(0.78_0.14_55/0.4)] bg-[oklch(0.78_0.14_55/0.12)] px-3 py-2.5 text-xs text-[oklch(0.85_0.14_70)]">
+              <div className="flex items-center gap-2 font-semibold">
+                <AlertCircle className="h-3.5 w-3.5" />
+                Alteração solicitada — aguardando ajustes do gestor
+              </div>
+              {post.revision_note && (
+                <p className="whitespace-pre-wrap text-[12px] leading-relaxed opacity-90">
+                  "{post.revision_note}"
+                </p>
               )}
-            </Button>
+            </div>
           )}
           {displayStatus === "approved" && (
             <div className="flex items-center justify-center gap-2 rounded-xl bg-mint/10 py-2.5 text-sm font-medium text-mint">

@@ -226,6 +226,41 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
     return true;
   };
 
+  const requestRevision = async (id: string, note: string) => {
+    const trimmed = note.trim();
+    if (!trimmed) {
+      toast.error("Descreva o que precisa ser alterado");
+      return false;
+    }
+    const { error } = await supabase
+      .from("editorial_posts")
+      .update({ revision_requested: true, revision_note: trimmed })
+      .eq("id", id);
+    if (error) {
+      toast.error("Falha ao solicitar alteração", { description: error.message });
+      return false;
+    }
+    toast.success("Solicitação enviada", {
+      description: "O administrador foi notificado e fará os ajustes.",
+    });
+    void notifyAdmins({
+      event: "post.revision_requested",
+      clientId,
+      body: "O cliente solicitou alterações em um post pendente. Abra a aba Posts para revisar.",
+    });
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, revision_requested: true, revision_note: trimmed } : p,
+      ),
+    );
+    setSelectedPost((cur) =>
+      cur && cur.id === id
+        ? { ...cur, revision_requested: true, revision_note: trimmed }
+        : cur,
+    );
+    return true;
+  };
+
   // Build month grid (6 rows x 7 cols)
   const grid = useMemo(() => {
     const year = cursor.getFullYear();

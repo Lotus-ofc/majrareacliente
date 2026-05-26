@@ -42,6 +42,8 @@ interface Post {
   pending_caption: string | null;
   caption_change_status: CaptionChangeStatus;
   status: RawPostStatus;
+  revision_requested: boolean;
+  revision_note: string | null;
 }
 
 const STATUS_META: Record<RawPostStatus, { label: string; cls: string; dot: string }> = {

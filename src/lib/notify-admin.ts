@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type PushEvent =
   | "post.created"
   | "post.caption_change"
+  | "post.revision_requested"
   | "invoice.created"
   | "invoice.paid"
   | "editorial.note"
@@ -26,6 +27,11 @@ const DEFAULT_COPY: Record<PushEvent, { title: string; body: string; url: string
   "post.caption_change": {
     title: "Sugestão de alteração de legenda",
     body: "O cliente sugeriu uma alteração na legenda de um post.",
+    url: "/admin",
+  },
+  "post.revision_requested": {
+    title: "Solicitação de alteração em post",
+    body: "O cliente pediu ajustes em um post pendente. Abra para revisar.",
     url: "/admin",
   },
   "invoice.created": {

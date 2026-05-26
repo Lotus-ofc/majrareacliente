@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,8 @@ interface Post {
   pending_caption: string | null;
   caption_change_status: CaptionChangeStatus;
   status: RawPostStatus;
+  revision_requested: boolean;
+  revision_note: string | null;
 }
 
 const STATUS_META: Record<RawPostStatus, { label: string; cls: string; dot: string }> = {
@@ -120,7 +123,7 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
     const { data } = await supabase
       .from("editorial_posts")
       .select(
-        "id, scheduled_date, scheduled_time, title, image_url, media_urls, post_format, caption, pending_caption, caption_change_status, status",
+        "id, scheduled_date, scheduled_time, title, image_url, media_urls, post_format, caption, pending_caption, caption_change_status, status, revision_requested, revision_note",
       )
       .eq("client_id", clientId)
       .order("scheduled_date", { ascending: true });
@@ -137,6 +140,8 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
       pending_caption?: string | null;
       caption_change_status?: string | null;
       status: string;
+      revision_requested?: boolean | null;
+      revision_note?: string | null;
     }) => {
       const mu = Array.isArray(p.media_urls)
         ? (p.media_urls as unknown[]).filter(
@@ -156,6 +161,8 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
         pending_caption: p.pending_caption ?? null,
         caption_change_status: (p.caption_change_status ?? "none") as CaptionChangeStatus,
         status: p.status as RawPostStatus,
+        revision_requested: !!p.revision_requested,
+        revision_note: p.revision_note ?? null,
       } as Post;
     });
     setPosts(normalized);
@@ -215,6 +222,41 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
     setSelectedPost((cur) =>
       cur && cur.id === id
         ? { ...cur, pending_caption: newCaption, caption_change_status: "pending" }
+        : cur,
+    );
+    return true;
+  };
+
+  const requestRevision = async (id: string, note: string) => {
+    const trimmed = note.trim();
+    if (!trimmed) {
+      toast.error("Descreva o que precisa ser alterado");
+      return false;
+    }
+    const { error } = await supabase
+      .from("editorial_posts")
+      .update({ revision_requested: true, revision_note: trimmed })
+      .eq("id", id);
+    if (error) {
+      toast.error("Falha ao solicitar alteração", { description: error.message });
+      return false;
+    }
+    toast.success("Solicitação enviada", {
+      description: "O administrador foi notificado e fará os ajustes.",
+    });
+    void notifyAdmins({
+      event: "post.revision_requested",
+      clientId,
+      body: "O cliente solicitou alterações em um post pendente. Abra a aba Posts para revisar.",
+    });
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, revision_requested: true, revision_note: trimmed } : p,
+      ),
+    );
+    setSelectedPost((cur) =>
+      cur && cur.id === id
+        ? { ...cur, revision_requested: true, revision_note: trimmed }
         : cur,
     );
     return true;
@@ -497,6 +539,7 @@ export function ClientCalendarView({ clientId, clientName }: { clientId: string;
           onClose={() => setSelectedPost(null)}
           onApprove={() => approve(selectedPost.id)}
           onProposeCaption={(text) => proposeCaption(selectedPost.id, text)}
+          onRequestRevision={(note) => requestRevision(selectedPost.id, note)}
           approving={approvingId === selectedPost.id}
         />
       )}
@@ -620,6 +663,7 @@ function PostDetailModal({
   onClose,
   onApprove,
   onProposeCaption,
+  onRequestRevision,
   approving,
 }: {
   post: Post;
@@ -628,6 +672,7 @@ function PostDetailModal({
   onClose: () => void;
   onApprove: () => void;
   onProposeCaption: (text: string) => Promise<boolean>;
+  onRequestRevision: (note: string) => Promise<boolean>;
   approving: boolean;
 }) {
   const displayStatus = getDisplayStatus(post.status, post.scheduled_date, post.scheduled_time, now);
@@ -639,14 +684,30 @@ function PostDetailModal({
   const [draftCaption, setDraftCaption] = useState(post.caption);
   const [submittingCaption, setSubmittingCaption] = useState(false);
 
+  const [revisionOpen, setRevisionOpen] = useState(false);
+  const [revisionDraft, setRevisionDraft] = useState("");
+  const [submittingRevision, setSubmittingRevision] = useState(false);
+
   // Sync draft when switching posts
   useEffect(() => {
     setDraftCaption(post.caption);
     setEditing(false);
+    setRevisionOpen(false);
+    setRevisionDraft("");
   }, [post.id, post.caption]);
 
   const captionPending = post.caption_change_status === "pending";
   const captionRejected = post.caption_change_status === "rejected";
+
+  const submitRevision = async () => {
+    setSubmittingRevision(true);
+    const ok = await onRequestRevision(revisionDraft);
+    setSubmittingRevision(false);
+    if (ok) {
+      setRevisionOpen(false);
+      setRevisionDraft("");
+    }
+  };
 
   const submitCaption = async () => {
     if (draftCaption.trim() === post.caption.trim()) {
@@ -703,21 +764,87 @@ function PostDetailModal({
 
         {/* Botão de aprovação logo abaixo */}
         <div className="space-y-3 px-5 pb-5 pt-4">
-          {post.status === "pending" && (
-            <Button
-              onClick={onApprove}
-              disabled={approving}
-              className="w-full bg-mint text-mint-foreground shadow-[0_10px_30px_-10px_oklch(0.96_0.06_175/0.7)] transition-transform hover:scale-[1.01] hover:bg-mint/90"
-            >
-              {approving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Check className="mr-1.5 h-4 w-4" />
-                  Aprovar Conteúdo
-                </>
+          {post.status === "pending" && !post.revision_requested && !revisionOpen && (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+              <Button
+                onClick={onApprove}
+                disabled={approving}
+                className="w-full bg-mint text-mint-foreground shadow-[0_10px_30px_-10px_oklch(0.96_0.06_175/0.7)] transition-transform hover:scale-[1.01] hover:bg-mint/90"
+              >
+                {approving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Check className="mr-1.5 h-4 w-4" />
+                    Aprovar Conteúdo
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setRevisionOpen(true)}
+                className="border-[oklch(0.78_0.14_55/0.5)] text-[oklch(0.85_0.14_70)] hover:bg-[oklch(0.78_0.14_55/0.1)] hover:text-[oklch(0.85_0.14_70)]"
+              >
+                <AlertCircle className="mr-1.5 h-4 w-4" />
+                Solicitar alteração
+              </Button>
+            </div>
+          )}
+
+          {post.status === "pending" && revisionOpen && (
+            <div className="space-y-2 rounded-xl border border-[oklch(0.78_0.14_55/0.4)] bg-[oklch(0.78_0.14_55/0.08)] p-3">
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-[oklch(0.85_0.14_70)]">
+                O que precisa ser alterado?
+              </Label>
+              <Textarea
+                rows={4}
+                value={revisionDraft}
+                onChange={(e) => setRevisionDraft(e.target.value)}
+                placeholder="Ex: trocar a imagem principal, ajustar o tom da legenda, mudar a data…"
+                className="text-sm"
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setRevisionOpen(false);
+                    setRevisionDraft("");
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={submitRevision}
+                  disabled={submittingRevision || !revisionDraft.trim()}
+                  className="bg-[oklch(0.78_0.14_55)] text-[oklch(0.18_0.04_55)] hover:bg-[oklch(0.74_0.14_55)]"
+                >
+                  {submittingRevision ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      <Send className="mr-1 h-3 w-3" />
+                      Enviar pedido
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {post.status === "pending" && post.revision_requested && (
+            <div className="space-y-1.5 rounded-xl border border-[oklch(0.78_0.14_55/0.4)] bg-[oklch(0.78_0.14_55/0.12)] px-3 py-2.5 text-xs text-[oklch(0.85_0.14_70)]">
+              <div className="flex items-center gap-2 font-semibold">
+                <AlertCircle className="h-3.5 w-3.5" />
+                Alteração solicitada — aguardando ajustes do gestor
+              </div>
+              {post.revision_note && (
+                <p className="whitespace-pre-wrap text-[12px] leading-relaxed opacity-90">
+                  "{post.revision_note}"
+                </p>
               )}
-            </Button>
+            </div>
           )}
           {displayStatus === "approved" && (
             <div className="flex items-center justify-center gap-2 rounded-xl bg-mint/10 py-2.5 text-sm font-medium text-mint">

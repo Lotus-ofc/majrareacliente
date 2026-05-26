@@ -120,11 +120,12 @@ function DashboardPage() {
     };
   }, [user]);
 
-  // Reset snapshot selection when changing source
+  // When source changes, default to latest snapshot of that source (if any)
   useEffect(() => {
-    setSnapshotId("live");
+    const latest = snapshots.find((s) => s.source === active);
+    setSnapshotId(latest ? latest.id : "live");
     setReportTab("dashboard");
-  }, [active]);
+  }, [active, snapshots]);
 
   const liveReport = useMemo(
     () => reports.find((r) => r.source === active) ?? null,
@@ -224,34 +225,43 @@ function DashboardPage() {
             </div>
             {section === "reports" && (
               <div className="flex flex-wrap items-center gap-2">
-                <Select
-                  value={snapshotId}
-                  onValueChange={setSnapshotId}
-                  disabled={sourceSnapshots.length === 0}
-                >
-                  <SelectTrigger className="h-9 w-auto min-w-[200px] gap-2 rounded-lg border-border bg-card/60 text-xs disabled:opacity-60">
-                    <History className="h-3.5 w-3.5 text-lilac" />
-                    <SelectValue
-                      placeholder={
-                        sourceSnapshots.length === 0
-                          ? "Sem snapshots ainda"
-                          : "Snapshot"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="live">Atual (ao vivo)</SelectItem>
-                    {sourceSnapshots.map((s) => {
-                      const [y, m, d] = s.snapshot_date.split("-");
-                      return (
-                        <SelectItem key={s.id} value={s.id}>
-                          {`${d}/${m}/${y}`}
-                          {s.period_start && s.period_end ? ` · período salvo` : ""}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-card/60 px-2.5 py-1.5 shadow-[0_4px_18px_-8px_oklch(0.42_0.22_305/0.4)]">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/15 text-lilac">
+                    <History className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="flex flex-col leading-tight">
+                    <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      Período
+                    </span>
+                    <Select
+                      value={snapshotId}
+                      onValueChange={setSnapshotId}
+                      disabled={sourceSnapshots.length === 0}
+                    >
+                      <SelectTrigger className="h-6 w-auto min-w-[170px] gap-2 border-0 bg-transparent p-0 text-xs font-medium shadow-none focus:ring-0 focus-visible:ring-0 disabled:opacity-60">
+                        <SelectValue
+                          placeholder={
+                            sourceSnapshots.length === 0
+                              ? "Sem snapshots ainda"
+                              : "Selecionar período"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sourceSnapshots.map((s) => {
+                          const [y, m, d] = s.snapshot_date.split("-");
+                          return (
+                            <SelectItem key={s.id} value={s.id}>
+                              {`${d}/${m}/${y}`}
+                              {s.period_start && s.period_end ? ` · período salvo` : ""}
+                            </SelectItem>
+                          );
+                        })}
+                        <SelectItem value="live">Atual (ao vivo)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 {fullReportUrl && (
                   <a
                     href={fullReportUrl}

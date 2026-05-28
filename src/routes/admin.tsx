@@ -19,7 +19,6 @@ import { toast } from "sonner";
 import {
   CalendarDays,
   Copy,
-  FileText,
   History,
   KeyRound,
   Loader2,

@@ -57,12 +57,7 @@ interface ClientRow {
   whatsapp_url: string | null;
 }
 
-interface ReportRow {
-  source: ReportSource;
-  iframe_url: string | null;
-  metrics: Record<string, string> | null;
-  pdf_path: string | null;
-}
+
 
 function AdminPage() {
   const { user, role, loading, session } = useAuth();

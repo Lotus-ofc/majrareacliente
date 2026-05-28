@@ -3,15 +3,8 @@ project_id = "qednvazhwsbixdtswqeg"
 [functions.admin-create-client]
 verify_jwt = false
 
-[functions.parse-report-pdf]
-verify_jwt = false
-
-[functions.ingest-report]
-verify_jwt = false
-
 [functions.admin-reset-password]
 verify_jwt = false
 
 [functions.send-push]
 verify_jwt = false
-

@@ -13,7 +13,7 @@ import { SOURCES, type ReportSource } from "@/lib/sources";
 import { METRICS_BY_SOURCE } from "@/lib/metrics";
 import { REPORT_BENTO } from "@/lib/report-bento";
 import { PORTAL_SECTIONS, type PortalSection } from "@/lib/portal-sections";
-import { ExternalLink, FileWarning, Loader2, Sparkles, History, LayoutDashboard } from "lucide-react";
+import { ExternalLink, FileWarning, Loader2, NotebookPen, History, LayoutDashboard } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -303,8 +303,8 @@ function DashboardPage() {
                     value="ai"
                     className="gap-1.5 data-[state=active]:bg-mint/15 data-[state=active]:text-mint"
                   >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Análise da IA
+                    <NotebookPen className="h-3.5 w-3.5" />
+                    Análise
                   </TabsTrigger>
                 </TabsList>
 
@@ -335,14 +335,14 @@ function DashboardPage() {
                     <div className="glass rounded-2xl border border-mint/30 p-5 fade-in">
                       <div className="mb-3 flex items-center gap-2">
                         <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-mint/40 bg-mint/15 text-mint">
-                          <Sparkles className="h-4 w-4" />
+                          <NotebookPen className="h-4 w-4" />
                         </span>
                         <div>
                           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-mint">
-                            Análise da IA
+                            Análise do período
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Leitura qualitativa do período por IA, atrelada a este snapshot
+                            Leitura qualitativa redigida pelo gestor para este snapshot
                           </p>
                         </div>
                       </div>
@@ -354,13 +354,13 @@ function DashboardPage() {
                     <div className="glass flex h-full items-center justify-center rounded-2xl py-16 fade-in">
                       <div className="max-w-sm px-6 text-center text-muted-foreground">
                         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-mint/10">
-                          <Sparkles className="h-5 w-5 text-mint" />
+                          <NotebookPen className="h-5 w-5 text-mint" />
                         </div>
                         <p className="text-sm font-medium text-foreground">
-                          Sem análise da IA neste período
+                          Sem análise neste período
                         </p>
                         <p className="mt-1 text-xs">
-                          A análise é gerada automaticamente quando o gestor importa um relatório (PDF/CSV/XLSX) na Central de Snapshots.
+                          O gestor pode escrever a análise ao salvar um snapshot histórico no painel admin.
                         </p>
                       </div>
                     </div>

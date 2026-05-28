@@ -303,8 +303,8 @@ function DashboardPage() {
                     value="ai"
                     className="gap-1.5 data-[state=active]:bg-mint/15 data-[state=active]:text-mint"
                   >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Análise da IA
+                    <NotebookPen className="h-3.5 w-3.5" />
+                    Análise
                   </TabsTrigger>
                 </TabsList>
 

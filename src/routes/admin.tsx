@@ -20,15 +20,14 @@ import {
   CalendarDays,
   Copy,
   FileText,
+  History,
   KeyRound,
   Loader2,
   NotebookPen,
   Plus,
   Save,
   ShieldCheck,
-  Sparkles,
   Trash2,
-  Upload,
   UserCog,
   Wallet,
 } from "lucide-react";
@@ -36,6 +35,7 @@ import { SOURCES, type ReportSource } from "@/lib/sources";
 import { notifyClient } from "@/lib/notify-admin";
 import { METRICS_BY_SOURCE } from "@/lib/metrics";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { ManagePostsDialog } from "@/components/ManagePostsDialog";
 import { ManageInvoicesDialog } from "@/components/ManageInvoicesDialog";
 import { ManageEditorialDialog } from "@/components/ManageEditorialDialog";

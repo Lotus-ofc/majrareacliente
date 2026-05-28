@@ -520,6 +520,23 @@ function CredRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+interface SnapshotRow {
+  id: string;
+  source: ReportSource;
+  snapshot_date: string;
+  period_start: string | null;
+  period_end: string | null;
+  ai_analysis: string;
+}
+
+interface SnapshotForm {
+  period_start: string;
+  period_end: string;
+  analysis: string;
+}
+
+const EMPTY_FORM: SnapshotForm = { period_start: "", period_end: "", analysis: "" };
+
 function ManageReportsDialog({
   client,
   onClose,
@@ -529,30 +546,36 @@ function ManageReportsDialog({
 }) {
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [metrics, setMetrics] = useState<Record<string, Record<string, string>>>({});
-  const [pdfPaths, setPdfPaths] = useState<Record<string, string | null>>({});
-  const [parsingSource, setParsingSource] = useState<ReportSource | null>(null);
+  const [snapshots, setSnapshots] = useState<SnapshotRow[]>([]);
+  const [snapshotForms, setSnapshotForms] = useState<Record<string, SnapshotForm>>({});
+  const [savingSnapshot, setSavingSnapshot] = useState<ReportSource | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from("client_reports")
-        .select("source, iframe_url, metrics, pdf_path")
-        .eq("client_id", client.id);
+      const [reportsRes, snapsRes] = await Promise.all([
+        supabase
+          .from("client_reports")
+          .select("source, iframe_url, metrics")
+          .eq("client_id", client.id),
+        supabase
+          .from("report_snapshots")
+          .select("id, source, snapshot_date, period_start, period_end, ai_analysis")
+          .eq("client_id", client.id)
+          .order("snapshot_date", { ascending: false }),
+      ]);
       if (cancelled) return;
       const urlMap: Record<string, string> = {};
       const metricMap: Record<string, Record<string, string>> = {};
-      const pdfMap: Record<string, string | null> = {};
-      ((data ?? []) as unknown as ReportRow[]).forEach((r) => {
+      ((reportsRes.data ?? []) as Array<{ source: ReportSource; iframe_url: string | null; metrics: Record<string, string> | null }>).forEach((r) => {
         urlMap[r.source] = r.iframe_url ?? "";
         metricMap[r.source] = (r.metrics ?? {}) as Record<string, string>;
-        pdfMap[r.source] = r.pdf_path ?? null;
       });
       setUrls(urlMap);
       setMetrics(metricMap);
-      setPdfPaths(pdfMap);
+      setSnapshots((snapsRes.data ?? []) as unknown as SnapshotRow[]);
       setLoading(false);
     })();
     return () => {
@@ -567,84 +590,73 @@ function ManageReportsDialog({
     }));
   };
 
-  const handlePdfUpload = async (source: ReportSource, file: File) => {
-    const name = file.name.toLowerCase();
-    const isPdf = file.type === "application/pdf" || name.endsWith(".pdf");
-    const isCsv = file.type.includes("csv") || name.endsWith(".csv");
-    const isXlsx =
-      name.endsWith(".xlsx") ||
-      name.endsWith(".xls") ||
-      file.type.includes("sheet") ||
-      file.type.includes("excel");
-    if (!isPdf && !isCsv && !isXlsx) {
-      toast.error("Envie um arquivo PDF, CSV ou XLSX");
+  const updateForm = (source: ReportSource, patch: Partial<SnapshotForm>) => {
+    setSnapshotForms((prev) => ({
+      ...prev,
+      [source]: { ...(prev[source] ?? EMPTY_FORM), ...patch },
+    }));
+  };
+
+  const saveSnapshot = async (source: ReportSource) => {
+    const form = snapshotForms[source] ?? EMPTY_FORM;
+    const sourceMetrics = metrics[source] ?? {};
+    const cleaned: Record<string, string> = {};
+    Object.entries(sourceMetrics).forEach(([k, v]) => {
+      const t = (v ?? "").toString().trim();
+      if (t) cleaned[k] = t;
+    });
+    if (Object.keys(cleaned).length === 0) {
+      toast.error("Preencha pelo menos uma métrica antes de salvar o snapshot.");
       return;
     }
-    if (file.size > 25 * 1024 * 1024) {
-      toast.error("Arquivo muito grande (máx 25MB)");
-      return;
-    }
-    setParsingSource(source);
-    const ext = isPdf ? "pdf" : isCsv ? "csv" : "xlsx";
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const path = `${client.id}/${source}-${stamp}.${ext}`;
+    setSavingSnapshot(source);
     try {
-      const { error: upErr } = await supabase.storage
-        .from("report-pdfs")
-        .upload(path, file, { upsert: true, contentType: file.type || undefined });
-      if (upErr) throw upErr;
-
-      toast.info("Arquivo enviado. IA transcrevendo dados…", { duration: 3000 });
-
-      const { data, error } = await supabase.functions.invoke("ingest-report", {
-        body: { client_id: client.id, source, file_path: path, file_mime: file.type },
-      });
+      const { getClientAgencyId } = await import("@/lib/agency");
+      const agency_id = await getClientAgencyId(client.id);
+      const payload = {
+        client_id: client.id,
+        agency_id,
+        source,
+        snapshot_date: new Date().toISOString().slice(0, 10),
+        period_start: form.period_start || null,
+        period_end: form.period_end || null,
+        dashboard_layout: { metrics: cleaned },
+        raw_data: {},
+        ai_analysis: form.analysis.trim(),
+      };
+      const { data, error } = await supabase
+        .from("report_snapshots")
+        .insert(payload)
+        .select("id, source, snapshot_date, period_start, period_end, ai_analysis")
+        .single();
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      const layout = (data?.snapshot?.dashboard_layout ?? {}) as { metrics?: Record<string, string> };
-      const extracted = layout.metrics ?? {};
-      setMetrics((prev) => ({
-        ...prev,
-        [source]: { ...(prev[source] ?? {}), ...extracted },
-      }));
-      setPdfPaths((prev) => ({ ...prev, [source]: path }));
-      toast.success(
-        `Snapshot salvo · ${Object.keys(extracted).length} métrica(s) extraída(s).`,
-        { description: "Gráficos e análise da IA disponíveis para o cliente." },
-      );
+      setSnapshots((prev) => [data as unknown as SnapshotRow, ...prev]);
+      setSnapshotForms((prev) => ({ ...prev, [source]: EMPTY_FORM }));
+      toast.success("Snapshot histórico salvo.");
       void notifyClient({ clientId: client.id, event: "report.published" });
     } catch (e) {
-      toast.error("Falha ao processar relatório", { description: (e as Error).message });
+      toast.error("Falha ao salvar snapshot", { description: (e as Error).message });
     } finally {
-      setParsingSource(null);
+      setSavingSnapshot(null);
     }
   };
 
-  const removePdf = async (source: ReportSource) => {
-    const path = pdfPaths[source];
-    if (!path) return;
-    try {
-      await supabase.storage.from("report-pdfs").remove([path]);
-      await supabase
-        .from("client_reports")
-        .update({ pdf_path: null })
-        .eq("client_id", client.id)
-        .eq("source", source);
-      setPdfPaths((prev) => ({ ...prev, [source]: null }));
-      toast.success("PDF removido");
-    } catch (e) {
-      toast.error("Erro ao remover PDF", { description: (e as Error).message });
+  const deleteSnapshot = async (id: string) => {
+    if (!confirm("Excluir este snapshot?")) return;
+    const prev = snapshots;
+    setSnapshots((s) => s.filter((x) => x.id !== id));
+    const { error } = await supabase.from("report_snapshots").delete().eq("id", id);
+    if (error) {
+      setSnapshots(prev);
+      toast.error("Erro ao excluir snapshot", { description: error.message });
+    } else {
+      toast.success("Snapshot excluído");
     }
   };
 
   const clearSource = async (source: ReportSource) => {
-    if (!confirm(`Limpar todos os dados de ${SOURCES.find((s) => s.key === source)?.label}? Isto remove métricas, URL e PDF salvos.`)) return;
-    const path = pdfPaths[source];
+    if (!confirm(`Limpar dados atuais de ${SOURCES.find((s) => s.key === source)?.label}? (snapshots históricos não são afetados)`)) return;
     try {
-      if (path) {
-        await supabase.storage.from("report-pdfs").remove([path]).catch(() => {});
-      }
       await supabase
         .from("client_reports")
         .delete()
@@ -652,7 +664,6 @@ function ManageReportsDialog({
         .eq("source", source);
       setUrls((prev) => ({ ...prev, [source]: "" }));
       setMetrics((prev) => ({ ...prev, [source]: {} }));
-      setPdfPaths((prev) => ({ ...prev, [source]: null }));
       toast.success("Dados da fonte limpos");
     } catch (e) {
       toast.error("Erro ao limpar", { description: (e as Error).message });
@@ -675,11 +686,7 @@ function ManageReportsDialog({
           source: s.key,
           iframe_url: url,
           metrics: cleanedMetrics,
-          pdf_path: pdfPaths[s.key] ?? null,
-          hasContent:
-            url.length > 0 ||
-            Object.keys(cleanedMetrics).length > 0 ||
-            !!pdfPaths[s.key],
+          hasContent: url.length > 0 || Object.keys(cleanedMetrics).length > 0,
         };
       });
 
@@ -728,7 +735,7 @@ function ManageReportsDialog({
         <DialogHeader className="flex-shrink-0 border-b border-border/60 px-6 pb-4 pt-6">
           <DialogTitle>Relatórios — {client.full_name || client.company}</DialogTitle>
           <DialogDescription>
-            Importe um relatório (PDF/CSV/XLSX) por fonte ou preencha as métricas manualmente.
+            Preencha as métricas manualmente por fonte. Use o bloco "Snapshot histórico" para arquivar uma versão do período.
           </DialogDescription>
         </DialogHeader>
 
@@ -758,10 +765,11 @@ function ManageReportsDialog({
               {SOURCES.map((s) => {
                 const defs = METRICS_BY_SOURCE[s.key];
                 const sourceMetrics = metrics[s.key] ?? {};
+                const form = snapshotForms[s.key] ?? EMPTY_FORM;
+                const srcSnaps = snapshots.filter((x) => x.source === s.key);
                 const hasData =
                   (urls[s.key] ?? "").trim().length > 0 ||
-                  Object.values(sourceMetrics).some((v) => (v ?? "").toString().trim().length > 0) ||
-                  !!pdfPaths[s.key];
+                  Object.values(sourceMetrics).some((v) => (v ?? "").toString().trim().length > 0);
                 return (
                   <TabsContent key={s.key} value={s.key} className="mt-0 space-y-4">
                     <div className="flex items-center justify-end">
@@ -776,14 +784,6 @@ function ManageReportsDialog({
                         Limpar dados desta fonte
                       </Button>
                     </div>
-
-                    <PdfImportBlock
-                      source={s.key}
-                      pdfPath={pdfPaths[s.key] ?? null}
-                      parsing={parsingSource === s.key}
-                      onUpload={(file) => handlePdfUpload(s.key, file)}
-                      onRemove={() => removePdf(s.key)}
-                    />
 
                     <div className="rounded-lg border border-border bg-card/50 p-3">
                       <Label className="text-xs">URL do relatório completo (mLabs)</Label>
@@ -830,6 +830,97 @@ function ManageReportsDialog({
                         );
                       })}
                     </div>
+
+                    <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <History className="h-3.5 w-3.5 text-lilac" />
+                        <Label className="text-xs font-semibold">Salvar snapshot histórico</Label>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground -mt-1">
+                        Arquiva as métricas atuais + análise para o cliente poder navegar entre períodos passados.
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-[11px]">Período — início</Label>
+                          <Input
+                            type="date"
+                            className="mt-1 text-xs"
+                            value={form.period_start}
+                            onChange={(e) => updateForm(s.key, { period_start: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[11px]">Período — fim</Label>
+                          <Input
+                            type="date"
+                            className="mt-1 text-xs"
+                            value={form.period_end}
+                            onChange={(e) => updateForm(s.key, { period_end: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-[11px]">Análise / observações do período</Label>
+                        <Textarea
+                          className="mt-1 text-xs"
+                          rows={4}
+                          placeholder="Resumo qualitativo: o que aconteceu, principais variações, recomendações…"
+                          value={form.analysis}
+                          onChange={(e) => updateForm(s.key, { analysis: e.target.value })}
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => saveSnapshot(s.key)}
+                        disabled={savingSnapshot === s.key}
+                        className="bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)]"
+                      >
+                        {savingSnapshot === s.key ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <>
+                            <Save className="mr-1.5 h-3.5 w-3.5" />
+                            Salvar snapshot
+                          </>
+                        )}
+                      </Button>
+
+                      {srcSnaps.length > 0 && (
+                        <div className="border-t border-border/50 pt-2">
+                          <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                            Snapshots salvos ({srcSnaps.length})
+                          </p>
+                          <div className="space-y-1">
+                            {srcSnaps.map((snap) => {
+                              const [y, mo, d] = snap.snapshot_date.split("-");
+                              return (
+                                <div
+                                  key={snap.id}
+                                  className="flex items-center justify-between gap-2 rounded bg-background/40 px-2 py-1.5 text-xs"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <div className="font-medium">{`${d}/${mo}/${y}`}</div>
+                                    {snap.period_start && snap.period_end && (
+                                      <div className="text-[10px] text-muted-foreground">
+                                        período {snap.period_start} → {snap.period_end}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => deleteSnapshot(snap.id)}
+                                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </TabsContent>
                 );
               })}
@@ -861,105 +952,3 @@ function ManageReportsDialog({
   );
 }
 
-function PdfImportBlock({
-  source,
-  pdfPath,
-  parsing,
-  onUpload,
-  onRemove,
-}: {
-  source: ReportSource;
-  pdfPath: string | null;
-  parsing: boolean;
-  onUpload: (file: File) => void;
-  onRemove: () => void;
-}) {
-  const [dragOver, setDragOver] = useState(false);
-  const inputId = `pdf-input-${source}`;
-
-  const onDrop = (e: React.DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) onUpload(file);
-  };
-
-  return (
-    <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <Label className="flex items-center gap-2 text-xs">
-          <Sparkles className="h-3.5 w-3.5 text-lilac" />
-          Preencher métricas com IA (PDF do mLabs)
-        </Label>
-        {pdfPath && !parsing && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onRemove}
-            className="h-7 px-2 text-[11px] text-muted-foreground hover:text-destructive"
-          >
-            <Trash2 className="mr-1 h-3 w-3" />
-            Remover
-          </Button>
-        )}
-      </div>
-
-      <label
-        htmlFor={inputId}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={onDrop}
-        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-4 text-center transition-colors ${
-          dragOver
-            ? "border-primary bg-primary/10"
-            : pdfPath
-              ? "border-mint/40 bg-mint/5"
-              : "border-border bg-background/40 hover:border-primary/50 hover:bg-primary/5"
-        }`}
-      >
-        {parsing ? (
-          <>
-            <Loader2 className="h-5 w-5 animate-spin text-lilac" />
-            <p className="text-xs text-muted-foreground">
-              Lendo PDF e extraindo métricas com IA…
-            </p>
-          </>
-        ) : pdfPath ? (
-          <>
-            <FileText className="h-5 w-5 text-mint" />
-            <p className="text-xs font-medium text-foreground">PDF importado ✓</p>
-            <p className="text-[11px] text-muted-foreground">
-              Clique ou arraste outro PDF para reprocessar
-            </p>
-          </>
-        ) : (
-          <>
-            <Upload className="h-5 w-5 text-lilac" />
-            <p className="text-xs font-medium text-foreground">
-              Arraste o PDF aqui ou clique para enviar
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              A IA vai ler e preencher os campos abaixo automaticamente (máx 25MB)
-            </p>
-          </>
-        )}
-        <input
-          id={inputId}
-          type="file"
-          accept="application/pdf"
-          className="hidden"
-          disabled={parsing}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onUpload(file);
-            e.target.value = "";
-          }}
-        />
-      </label>
-    </div>
-  );
-}

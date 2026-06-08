@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Loader2, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2, Lock, Mail } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -37,10 +37,55 @@ function LoginPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [sending, setSending] = useState(false);
 
+  // Password recovery (after clicking the e-mail link)
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Supabase emits PASSWORD_RECOVERY once it parses the recovery token from the
+  // URL. We open the "set new password" popup instead of navigating away.
   useEffect(() => {
-    if (loading || !user) return;
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setRecoveryOpen(true);
+      }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    // Don't auto-redirect while the user is in the middle of resetting a password.
+    if (loading || !user || recoveryOpen) return;
     navigate({ to: role === "admin" ? "/admin" : "/dashboard" });
-  }, [user, role, loading, navigate]);
+  }, [user, role, loading, navigate, recoveryOpen]);
+
+  const onUpdatePassword = async (e: FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 8) {
+      toast.error("Senha curta", { description: "Use pelo menos 8 caracteres." });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("As senhas não coincidem");
+      return;
+    }
+    setSaving(true);
+    // updateUser acts on the recovery session — only changes THIS user's password.
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setSaving(false);
+    if (error) {
+      toast.error("Falha ao redefinir senha", { description: error.message });
+      return;
+    }
+    toast.success("Senha redefinida com sucesso");
+    setRecoveryOpen(false);
+    setNewPassword("");
+    setConfirmPassword("");
+    // Sign out so the user logs in fresh with the new password.
+    await supabase.auth.signOut();
+  };
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -63,7 +108,7 @@ function LoginPage() {
     }
     setSending(true);
     const { error } = await supabase.auth.resetPasswordForEmail(target, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${window.location.origin}/login`,
     });
     setSending(false);
     if (error) {
@@ -207,6 +252,85 @@ function LoginPage() {
                 className="bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] font-medium text-primary-foreground"
               >
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enviar link"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* New password popup — opens automatically after the e-mail link is confirmed */}
+      <Dialog
+        open={recoveryOpen}
+        onOpenChange={(v) => {
+          // Keep open until the user finishes; closing manually cancels the flow.
+          setRecoveryOpen(v);
+          if (!v) {
+            setNewPassword("");
+            setConfirmPassword("");
+          }
+        }}
+      >
+        <DialogContent
+          className="glass-strong sm:max-w-md"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-lilac" />
+              Redefinir senha
+            </DialogTitle>
+            <DialogDescription>
+              E-mail confirmado. Defina sua nova senha de acesso ao portal.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={onUpdatePassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">Nova senha</Label>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="new-password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  autoComplete="new-password"
+                  placeholder="Mínimo 8 caracteres"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="px-9"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground"
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirmar nova senha</Label>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="confirm-password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  autoComplete="new-password"
+                  placeholder="Repita a senha"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="submit"
+                disabled={saving}
+                className="w-full bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] font-medium text-primary-foreground"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar nova senha"}
               </Button>
             </DialogFooter>
           </form>

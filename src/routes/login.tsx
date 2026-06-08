@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Loader2, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2, Lock, Mail } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   head: () => ({

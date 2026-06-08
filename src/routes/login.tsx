@@ -33,6 +33,9 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (loading || !user) return;
@@ -50,6 +53,30 @@ function LoginPage() {
       toast.success("Bem-vindo!");
     }
   };
+
+  const onForgot = async (e: FormEvent) => {
+    e.preventDefault();
+    const target = resetEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) {
+      toast.error("E-mail inválido");
+      return;
+    }
+    setSending(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(target, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setSending(false);
+    if (error) {
+      toast.error("Falha ao enviar", { description: error.message });
+      return;
+    }
+    toast.success("E-mail enviado", {
+      description: "Verifique sua caixa de entrada para redefinir a senha.",
+    });
+    setForgotOpen(false);
+    setResetEmail("");
+  };
+
 
   return (
     <div className="relative flex min-h-screen items-center justify-center px-4 py-10">

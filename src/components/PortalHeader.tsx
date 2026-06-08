@@ -24,7 +24,7 @@ interface Props {
   onViewAllNotifications?: () => void;
 }
 
-export function PortalHeader({ onMenuClick, showMenuButton, rightSlot }: Props) {
+export function PortalHeader({ onMenuClick, showMenuButton, rightSlot, onViewAllNotifications }: Props) {
   const { profile, signOut, role, user } = useAuth();
   const navigate = useNavigate();
   const [pwOpen, setPwOpen] = useState(false);

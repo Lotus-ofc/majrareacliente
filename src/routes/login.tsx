@@ -37,10 +37,55 @@ function LoginPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [sending, setSending] = useState(false);
 
+  // Password recovery (after clicking the e-mail link)
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Supabase emits PASSWORD_RECOVERY once it parses the recovery token from the
+  // URL. We open the "set new password" popup instead of navigating away.
   useEffect(() => {
-    if (loading || !user) return;
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setRecoveryOpen(true);
+      }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    // Don't auto-redirect while the user is in the middle of resetting a password.
+    if (loading || !user || recoveryOpen) return;
     navigate({ to: role === "admin" ? "/admin" : "/dashboard" });
-  }, [user, role, loading, navigate]);
+  }, [user, role, loading, navigate, recoveryOpen]);
+
+  const onUpdatePassword = async (e: FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 8) {
+      toast.error("Senha curta", { description: "Use pelo menos 8 caracteres." });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("As senhas não coincidem");
+      return;
+    }
+    setSaving(true);
+    // updateUser acts on the recovery session — only changes THIS user's password.
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setSaving(false);
+    if (error) {
+      toast.error("Falha ao redefinir senha", { description: error.message });
+      return;
+    }
+    toast.success("Senha redefinida com sucesso");
+    setRecoveryOpen(false);
+    setNewPassword("");
+    setConfirmPassword("");
+    // Sign out so the user logs in fresh with the new password.
+    await supabase.auth.signOut();
+  };
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();

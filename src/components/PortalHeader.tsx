@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { PushToggle } from "@/components/PushToggle";
+import { NotificationBell } from "@/components/NotificationBell";
 import { ChevronDown, KeyRound, LogOut, Menu, MessageCircle, User } from "lucide-react";
 import { DEFAULT_WHATSAPP } from "@/lib/sources";
 
@@ -20,6 +21,7 @@ interface Props {
   onMenuClick?: () => void;
   showMenuButton?: boolean;
   rightSlot?: React.ReactNode;
+  onViewAllNotifications?: () => void;
 }
 
 export function PortalHeader({ onMenuClick, showMenuButton, rightSlot }: Props) {

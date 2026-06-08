@@ -1,10 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/integrations/supabase/client";
 import { MajrLogo } from "@/components/MajrLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Loader2, Lock, Mail } from "lucide-react";
 
@@ -24,6 +33,9 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (loading || !user) return;
@@ -41,6 +53,30 @@ function LoginPage() {
       toast.success("Bem-vindo!");
     }
   };
+
+  const onForgot = async (e: FormEvent) => {
+    e.preventDefault();
+    const target = resetEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) {
+      toast.error("E-mail inválido");
+      return;
+    }
+    setSending(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(target, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setSending(false);
+    if (error) {
+      toast.error("Falha ao enviar", { description: error.message });
+      return;
+    }
+    toast.success("E-mail enviado", {
+      description: "Verifique sua caixa de entrada para redefinir a senha.",
+    });
+    setForgotOpen(false);
+    setResetEmail("");
+  };
+
 
   return (
     <div className="relative flex min-h-screen items-center justify-center px-4 py-10">
@@ -101,7 +137,20 @@ function LoginPage() {
                   className="h-11 bg-input/50 pl-9"
                 />
               </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetEmail(email);
+                    setForgotOpen(true);
+                  }}
+                  className="text-xs font-medium text-lilac transition-colors hover:text-foreground"
+                >
+                  Esqueci minha senha
+                </button>
+              </div>
             </div>
+
 
             <Button
               type="submit"
@@ -117,6 +166,53 @@ function LoginPage() {
           </p>
         </div>
       </div>
+
+      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
+        <DialogContent className="glass-strong sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Esqueci minha senha</DialogTitle>
+            <DialogDescription>
+              Informe seu e-mail e enviaremos um link para redefinir a senha.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={onForgot} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">E-mail</Label>
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="reset-email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="voce@empresa.com"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setForgotOpen(false)}
+                disabled={sending}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={sending}
+                className="bg-gradient-to-r from-primary to-[oklch(0.55_0.22_305)] font-medium text-primary-foreground"
+              >
+                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enviar link"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

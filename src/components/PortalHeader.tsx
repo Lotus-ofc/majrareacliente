@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { PushToggle } from "@/components/PushToggle";
+import { NotificationBell } from "@/components/NotificationBell";
 import { ChevronDown, KeyRound, LogOut, Menu, MessageCircle, User } from "lucide-react";
 import { DEFAULT_WHATSAPP } from "@/lib/sources";
 
@@ -20,9 +21,10 @@ interface Props {
   onMenuClick?: () => void;
   showMenuButton?: boolean;
   rightSlot?: React.ReactNode;
+  onViewAllNotifications?: () => void;
 }
 
-export function PortalHeader({ onMenuClick, showMenuButton, rightSlot }: Props) {
+export function PortalHeader({ onMenuClick, showMenuButton, rightSlot, onViewAllNotifications }: Props) {
   const { profile, signOut, role, user } = useAuth();
   const navigate = useNavigate();
   const [pwOpen, setPwOpen] = useState(false);
@@ -59,6 +61,7 @@ export function PortalHeader({ onMenuClick, showMenuButton, rightSlot }: Props) 
 
       <div className="flex items-center gap-2 sm:gap-3">
         {rightSlot}
+        {user?.id && <NotificationBell onViewAll={onViewAllNotifications} />}
         {role === "client" && user?.id && <PushToggle userId={user.id} />}
 
         <a

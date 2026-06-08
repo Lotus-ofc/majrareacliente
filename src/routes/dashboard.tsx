@@ -205,7 +205,11 @@ function DashboardPage() {
       />
 
       <div className="flex min-h-screen flex-1 flex-col lg:h-screen lg:min-h-0">
-        <PortalHeader onMenuClick={() => setOpen(true)} showMenuButton />
+        <PortalHeader
+          onMenuClick={() => setOpen(true)}
+          showMenuButton
+          onViewAllNotifications={() => setSection("news")}
+        />
 
         <main
           className={

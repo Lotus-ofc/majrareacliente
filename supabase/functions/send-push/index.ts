@@ -28,7 +28,13 @@ Deno.serve(async (req) => {
     const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
     const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
     const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
-    const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") || "mailto:contato@leandromajr.com";
+    let VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") || "mailto:contato@leandromajr.com";
+    // web-push exige um "subject" no formato URL (mailto: ou https:). Normaliza valores soltos.
+    if (!/^(mailto:|https?:)/i.test(VAPID_SUBJECT)) {
+      VAPID_SUBJECT = VAPID_SUBJECT.includes("@")
+        ? `mailto:${VAPID_SUBJECT}`
+        : `https://${VAPID_SUBJECT}`;
+    }
 
     if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
       return new Response(JSON.stringify({ error: "VAPID keys não configuradas" }), {

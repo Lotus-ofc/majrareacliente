@@ -61,6 +61,7 @@ export function PortalHeader({ onMenuClick, showMenuButton, rightSlot, onViewAll
 
       <div className="flex items-center gap-2 sm:gap-3">
         {rightSlot}
+        {user?.id && <NotificationBell onViewAll={onViewAllNotifications} />}
         {role === "client" && user?.id && <PushToggle userId={user.id} />}
 
         <a

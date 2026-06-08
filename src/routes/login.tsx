@@ -137,7 +137,20 @@ function LoginPage() {
                   className="h-11 bg-input/50 pl-9"
                 />
               </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetEmail(email);
+                    setForgotOpen(true);
+                  }}
+                  className="text-xs font-medium text-lilac transition-colors hover:text-foreground"
+                >
+                  Esqueci minha senha
+                </button>
+              </div>
             </div>
+
 
             <Button
               type="submit"

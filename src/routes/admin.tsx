@@ -627,12 +627,15 @@ function ManageReportsDialog({
       setSnapshots((prev) => [data as unknown as SnapshotRow, ...prev]);
       setSnapshotForms((prev) => ({ ...prev, [source]: EMPTY_FORM }));
       toast.success("Snapshot histórico salvo.");
-      void notifyClient({
-        clientId: client.id,
-        event: "report.published",
-        title: `Novo relatório ${SOURCES.find((s) => s.key === source)?.label ?? ""}`.trim(),
-        body: "Um novo relatório foi publicado. Toque para conferir os números.",
-      });
+      {
+        const copy = reportSourceCopy(source);
+        void notifyClient({
+          clientId: client.id,
+          event: "report.published",
+          title: copy.title,
+          body: copy.body,
+        });
+      }
     } catch (e) {
       toast.error("Falha ao salvar snapshot", { description: (e as Error).message });
     } finally {

@@ -28,7 +28,9 @@ export function PortalHeader({ onMenuClick, showMenuButton, rightSlot, onViewAll
   const { profile, signOut, role, user } = useAuth();
   const navigate = useNavigate();
   const [pwOpen, setPwOpen] = useState(false);
-  const whats = profile?.whatsapp_url || DEFAULT_WHATSAPP;
+  const whats = /^https?:\/\//i.test(profile?.whatsapp_url ?? "")
+    ? profile!.whatsapp_url!
+    : DEFAULT_WHATSAPP;
 
   const handleLogout = async () => {
     await signOut();

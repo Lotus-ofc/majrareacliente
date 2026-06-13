@@ -175,7 +175,8 @@ function DashboardPage() {
   const metricDefs = METRICS_BY_SOURCE[active];
   const bentoConfig = REPORT_BENTO[active];
   const metricValues = current?.metrics ?? {};
-  const fullReportUrl = liveReport?.iframe_url?.trim() || null;
+  const rawReportUrl = liveReport?.iframe_url?.trim() ?? "";
+  const fullReportUrl = /^https?:\/\//i.test(rawReportUrl) ? rawReportUrl : null;
 
   const hasAnyMetric = metricDefs.some(
     (m) => (metricValues[m.key] ?? "").toString().trim().length > 0,

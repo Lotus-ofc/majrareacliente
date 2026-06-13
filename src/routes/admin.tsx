@@ -31,7 +31,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { SOURCES, type ReportSource } from "@/lib/sources";
-import { notifyClient } from "@/lib/notify-admin";
+import { notifyClient, reportSourceCopy } from "@/lib/notify-admin";
 import { METRICS_BY_SOURCE } from "@/lib/metrics";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";

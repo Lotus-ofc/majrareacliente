@@ -716,16 +716,15 @@ function ManageReportsDialog({
       }
       toast.success("Relatórios atualizados");
       if (toUpsert.length > 0) {
-        const labels = toUpsert
-          .map((r) => SOURCES.find((s) => s.key === r.source)?.label)
-          .filter(Boolean)
-          .join(", ");
-        void notifyClient({
-          clientId: client.id,
-          event: "report.published",
-          title: toUpsert.length === 1 ? `Novo relatório ${labels}` : "Relatórios atualizados",
-          body: labels ? `Atualizamos: ${labels}. Toque para conferir.` : undefined,
-        });
+        for (const r of toUpsert) {
+          const copy = reportSourceCopy(r.source);
+          void notifyClient({
+            clientId: client.id,
+            event: "report.published",
+            title: copy.title,
+            body: copy.body,
+          });
+        }
       }
       onClose();
     } catch (e) {

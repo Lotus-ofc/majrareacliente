@@ -65,7 +65,6 @@ export function PortalHeader({ onMenuClick, showMenuButton, rightSlot, onViewAll
         {rightSlot}
         {user?.id && <NotificationBell onViewAll={onViewAllNotifications} />}
 
-
         <a
           href={whats}
           target="_blank"

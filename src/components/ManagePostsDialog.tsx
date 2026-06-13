@@ -399,7 +399,21 @@ export function ManagePostsDialog({
     }
     toast.success(editingId ? "Post atualizado" : "Post criado");
     if (!editingId) {
-      void notifyClient({ clientId, event: "post.created" });
+      const postName = form.title?.trim();
+      const formatLabel =
+        form.post_format === "reel"
+          ? "Reel"
+          : form.post_format === "carousel"
+            ? "Carrossel"
+            : "Post";
+      void notifyClient({
+        clientId,
+        event: "post.created",
+        title: `📅 Novo ${formatLabel} para aprovação`,
+        body: postName
+          ? `"${postName}" foi adicionado ao seu calendário. Toque para revisar e aprovar.`
+          : "Um novo conteúdo foi adicionado ao seu calendário. Toque para revisar e aprovar.",
+      });
     }
     cancelEdit();
     void fetchPosts();

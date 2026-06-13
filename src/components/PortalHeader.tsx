@@ -64,7 +64,7 @@ export function PortalHeader({ onMenuClick, showMenuButton, rightSlot, onViewAll
       <div className="flex items-center gap-2 sm:gap-3">
         {rightSlot}
         {user?.id && <NotificationBell onViewAll={onViewAllNotifications} />}
-        {role === "client" && user?.id && <PushToggle userId={user.id} />}
+
 
         <a
           href={whats}
@@ -122,7 +122,11 @@ export function PortalHeader({ onMenuClick, showMenuButton, rightSlot, onViewAll
               <KeyRound className="mr-2 h-4 w-4" />
               Alterar senha
             </DropdownMenuItem>
+            {role === "client" && user?.id && (
+              <PushToggle userId={user.id} mode="menu-item" alwaysVisible />
+            )}
             <DropdownMenuSeparator />
+
             <DropdownMenuItem
               onClick={handleLogout}
               className="cursor-pointer text-destructive focus:text-destructive"

@@ -238,7 +238,14 @@ function NoteFormDialog({
         return;
       }
       toast.success("Anotação criada");
-      void notifyClient({ clientId, event: "editorial.note" });
+      void notifyClient({
+        clientId,
+        event: "editorial.note",
+        title: "🗓️ Nova anotação no calendário editorial",
+        body: title.trim()
+          ? `"${title.trim()}" foi adicionada à sua agenda editorial${date ? ` para ${date}` : ""}.`
+          : "Uma nova anotação foi adicionada à sua agenda editorial.",
+      });
     }
     onSaved();
   };

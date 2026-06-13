@@ -31,7 +31,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { SOURCES, type ReportSource } from "@/lib/sources";
-import { notifyClient } from "@/lib/notify-admin";
+import { notifyClient, reportSourceCopy } from "@/lib/notify-admin";
 import { METRICS_BY_SOURCE } from "@/lib/metrics";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -627,12 +627,15 @@ function ManageReportsDialog({
       setSnapshots((prev) => [data as unknown as SnapshotRow, ...prev]);
       setSnapshotForms((prev) => ({ ...prev, [source]: EMPTY_FORM }));
       toast.success("Snapshot histórico salvo.");
-      void notifyClient({
-        clientId: client.id,
-        event: "report.published",
-        title: `Novo relatório ${SOURCES.find((s) => s.key === source)?.label ?? ""}`.trim(),
-        body: "Um novo relatório foi publicado. Toque para conferir os números.",
-      });
+      {
+        const copy = reportSourceCopy(source);
+        void notifyClient({
+          clientId: client.id,
+          event: "report.published",
+          title: copy.title,
+          body: copy.body,
+        });
+      }
     } catch (e) {
       toast.error("Falha ao salvar snapshot", { description: (e as Error).message });
     } finally {
@@ -713,16 +716,15 @@ function ManageReportsDialog({
       }
       toast.success("Relatórios atualizados");
       if (toUpsert.length > 0) {
-        const labels = toUpsert
-          .map((r) => SOURCES.find((s) => s.key === r.source)?.label)
-          .filter(Boolean)
-          .join(", ");
-        void notifyClient({
-          clientId: client.id,
-          event: "report.published",
-          title: toUpsert.length === 1 ? `Novo relatório ${labels}` : "Relatórios atualizados",
-          body: labels ? `Atualizamos: ${labels}. Toque para conferir.` : undefined,
-        });
+        for (const r of toUpsert) {
+          const copy = reportSourceCopy(r.source);
+          void notifyClient({
+            clientId: client.id,
+            event: "report.published",
+            title: copy.title,
+            body: copy.body,
+          });
+        }
       }
       onClose();
     } catch (e) {

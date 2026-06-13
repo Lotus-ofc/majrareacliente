@@ -155,10 +155,27 @@ export function ManageInvoicesDialog({
       return;
     }
     toast.success(editingId ? "Fatura atualizada" : "Fatura criada");
-    if (!editingId) {
-      void notifyClient({ clientId, event: "invoice.created" });
-    } else if (previous?.status !== "paid" && form.status === "paid") {
-      void notifyClient({ clientId, event: "invoice.paid" });
+    {
+      const valor = (cents / 100).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      });
+      const mesRef = form.reference_month?.trim();
+      if (!editingId) {
+        void notifyClient({
+          clientId,
+          event: "invoice.created",
+          title: "💳 Nova fatura disponível",
+          body: `Fatura de ${valor}${mesRef ? ` (ref. ${mesRef})` : ""} gerada. Vencimento em ${form.due_date}. Confira no portal.`,
+        });
+      } else if (previous?.status !== "paid" && form.status === "paid") {
+        void notifyClient({
+          clientId,
+          event: "invoice.paid",
+          title: "✅ Pagamento confirmado",
+          body: `Sua fatura de ${valor}${mesRef ? ` (ref. ${mesRef})` : ""} foi marcada como paga. Obrigado!`,
+        });
+      }
     }
     cancelEdit();
     void fetchInvoices();

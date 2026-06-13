@@ -18,6 +18,54 @@ interface NotifyArgs {
   url?: string;
 }
 
+/**
+ * Mensagens específicas por fonte de relatório, para que o cliente saiba
+ * exatamente o que foi publicado (Instagram, Google, Meta, etc.).
+ */
+const REPORT_SOURCE_COPY: Record<
+  string,
+  { title: string; body: string }
+> = {
+  overview: {
+    title: "📊 Visão geral atualizada",
+    body: "Atualizamos o panorama geral dos seus resultados. Toque para conferir.",
+  },
+  ga4: {
+    title: "📈 Relatório do Google Analytics publicado",
+    body: "Novos dados de tráfego e comportamento do site (GA4) estão disponíveis.",
+  },
+  meta_ads: {
+    title: "🟦 Relatório de Meta Ads publicado",
+    body: "Atualizamos os resultados das suas campanhas no Facebook e Instagram (Meta Ads).",
+  },
+  google_ads: {
+    title: "🔍 Relatório de Google Ads publicado",
+    body: "Novos resultados das suas campanhas no Google Ads já estão no portal.",
+  },
+  tiktok_ads: {
+    title: "🎵 Relatório de TikTok Ads publicado",
+    body: "Atualizamos o desempenho das suas campanhas no TikTok Ads.",
+  },
+  instagram_organic: {
+    title: "📸 Relatório do Instagram publicado",
+    body: "Novos números do seu Instagram orgânico (alcance, seguidores e engajamento) estão disponíveis.",
+  },
+  tiktok_organic: {
+    title: "🎬 Relatório do TikTok publicado",
+    body: "Atualizamos os resultados do seu TikTok orgânico. Toque para conferir.",
+  },
+};
+
+/** Retorna título e corpo específicos para uma fonte de relatório. */
+export function reportSourceCopy(source: string): { title: string; body: string } {
+  return (
+    REPORT_SOURCE_COPY[source] ?? {
+      title: "📊 Novo relatório publicado",
+      body: "Um relatório foi atualizado. Acesse para conferir os números.",
+    }
+  );
+}
+
 const DEFAULT_COPY: Record<PushEvent, { title: string; body: string; url: string }> = {
   "post.created": {
     title: "Novo post para aprovação",

@@ -267,7 +267,14 @@ export function ManagePostsDialog({
       return;
     }
     toast.success("Post reenviado para aprovação do cliente");
-    void notifyClient({ clientId, event: "post.created" });
+    void notifyClient({
+      clientId,
+      event: "post.created",
+      title: "🔁 Post reenviado para aprovação",
+      body: p.title?.trim()
+        ? `"${p.title.trim()}" foi ajustado e reenviado. Toque para revisar e aprovar.`
+        : "Um post foi ajustado e reenviado. Toque para revisar e aprovar.",
+    });
     void fetchPosts();
   };
 

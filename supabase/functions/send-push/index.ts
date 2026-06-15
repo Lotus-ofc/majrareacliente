@@ -5,6 +5,7 @@ import webpush from "https://esm.sh/web-push@3.6.7";
 const ALLOWED_ORIGINS = [
   "https://leandromajr.lovable.app",
   "https://login.leandromajr.com",
+  "https://cliente.leandromajr.com",
   "https://id-preview--863991a0-ab83-49e6-ab70-3704969c8855.lovable.app",
 ];
 

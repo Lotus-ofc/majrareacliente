@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
     const customPassword: string | null = body.password ? String(body.password) : null;
 
     if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      console.error("invalid email", { email });
       return new Response(JSON.stringify({ error: "E-mail inválido" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -84,6 +85,7 @@ Deno.serve(async (req) => {
       user_metadata: { full_name: fullName, company },
     });
     if (cErr || !created.user) {
+      console.error("createUser failed", { message: cErr?.message, status: (cErr as { status?: number } | null)?.status });
       return new Response(JSON.stringify({ error: cErr?.message ?? "Falha ao criar usuário" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

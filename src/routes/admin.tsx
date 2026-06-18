@@ -308,7 +308,18 @@ function CreateClientDialog({
           whatsapp_url: whatsapp || null,
         },
       });
-      if (error) throw error;
+      if (error) {
+        // FunctionsHttpError carries the response body with the real message
+        let msg = error.message;
+        try {
+          const ctx = (error as { context?: Response }).context;
+          if (ctx && typeof ctx.json === "function") {
+            const j = await ctx.json();
+            if (j?.error) msg = j.error;
+          }
+        } catch { /* ignore */ }
+        throw new Error(msg);
+      }
       if (data?.error) throw new Error(data.error);
       setResult({ email: data.email, password: data.password });
       onCreated();

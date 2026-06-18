@@ -84,6 +84,7 @@ Deno.serve(async (req) => {
       user_metadata: { full_name: fullName, company },
     });
     if (cErr || !created.user) {
+      console.error("createUser failed", { message: cErr?.message, status: (cErr as { status?: number } | null)?.status });
       return new Response(JSON.stringify({ error: cErr?.message ?? "Falha ao criar usuário" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

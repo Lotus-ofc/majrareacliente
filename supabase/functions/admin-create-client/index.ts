@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
     const customPassword: string | null = body.password ? String(body.password) : null;
 
     if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      console.error("invalid email", { email });
       return new Response(JSON.stringify({ error: "E-mail inválido" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

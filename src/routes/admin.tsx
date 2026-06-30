@@ -95,7 +95,16 @@ function AdminPage() {
       .select("id, full_name, company, whatsapp_url")
       .in("id", ids)
       .order("created_at", { ascending: false });
-    setClients((profs ?? []) as ClientRow[]);
+    let rows = (profs ?? []) as ClientRow[];
+    // Fetch emails (stored in auth) via admin function
+    try {
+      const { data: emailRes } = await supabase.functions.invoke("admin-list-emails");
+      const emails = (emailRes as { emails?: Record<string, string> } | null)?.emails ?? {};
+      rows = rows.map((r) => ({ ...r, email: emails[r.id] ?? null }));
+    } catch {
+      // ignore — emails simply won't show
+    }
+    setClients(rows);
     setLoadingList(false);
   };
 

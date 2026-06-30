@@ -9,7 +9,13 @@ const ALLOWED_ORIGINS = [
 ];
 
 function buildCorsHeaders(origin: string | null) {
-  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  const isAllowed =
+    origin &&
+    (ALLOWED_ORIGINS.includes(origin) ||
+      /\.lovable\.app$/.test(origin) ||
+      /\.lovableproject\.com$/.test(origin) ||
+      /^http:\/\/localhost(:\d+)?$/.test(origin));
+  const allowed = isAllowed ? origin! : ALLOWED_ORIGINS[0];
   return {
     "Access-Control-Allow-Origin": allowed,
     "Vary": "Origin",

@@ -55,6 +55,7 @@ interface ClientRow {
   full_name: string;
   company: string | null;
   whatsapp_url: string | null;
+  email?: string | null;
 }
 
 

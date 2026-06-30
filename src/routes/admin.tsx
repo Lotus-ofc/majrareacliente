@@ -151,6 +151,61 @@ function AdminPage() {
               <CreateClientDialog onCreated={fetchClients} accessToken={session?.access_token ?? ""} />
             </div>
 
+            {(() => {
+              const emails = clients.map((c) => c.email).filter(Boolean) as string[];
+              return (
+                <div className="mt-6 glass rounded-2xl p-5">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="text-sm font-semibold text-foreground">
+                      E-mails cadastrados ({emails.length})
+                    </h2>
+                    {emails.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(emails.join(", "));
+                          toast.success("Todos os e-mails copiados");
+                        }}
+                        className="border-primary/40 bg-primary/10 text-lilac hover:bg-primary/15"
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copiar todos
+                      </Button>
+                    )}
+                  </div>
+                  {loadingList ? (
+                    <p className="text-sm text-muted-foreground">Carregando…</p>
+                  ) : emails.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum e-mail encontrado.</p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {emails.map((email) => (
+                        <li
+                          key={email}
+                          className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-secondary/60"
+                        >
+                          <span className="truncate">{email}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(email);
+                              toast.success("E-mail copiado");
+                            }}
+                            className="shrink-0 text-muted-foreground hover:text-lilac"
+                            title="Copiar e-mail"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })()}
+
+
             <div className="mt-6 glass overflow-hidden rounded-2xl">
               {loadingList ? (
                 <div className="flex items-center justify-center p-12">

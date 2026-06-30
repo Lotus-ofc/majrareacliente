@@ -174,6 +174,20 @@ function AdminPage() {
                         <div className="text-xs text-muted-foreground">
                           {c.company || "—"}
                         </div>
+                        {c.email && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(c.email!);
+                              toast.success("E-mail copiado");
+                            }}
+                            className="mt-0.5 inline-flex items-center gap-1 text-xs text-lilac hover:underline"
+                            title="Copiar e-mail"
+                          >
+                            <Copy className="h-3 w-3" />
+                            {c.email}
+                          </button>
+                        )}
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button

@@ -55,6 +55,7 @@ interface ClientRow {
   full_name: string;
   company: string | null;
   whatsapp_url: string | null;
+  email?: string | null;
 }
 
 
@@ -94,7 +95,16 @@ function AdminPage() {
       .select("id, full_name, company, whatsapp_url")
       .in("id", ids)
       .order("created_at", { ascending: false });
-    setClients((profs ?? []) as ClientRow[]);
+    let rows = (profs ?? []) as ClientRow[];
+    // Fetch emails (stored in auth) via admin function
+    try {
+      const { data: emailRes } = await supabase.functions.invoke("admin-list-emails");
+      const emails = (emailRes as { emails?: Record<string, string> } | null)?.emails ?? {};
+      rows = rows.map((r) => ({ ...r, email: emails[r.id] ?? null }));
+    } catch {
+      // ignore — emails simply won't show
+    }
+    setClients(rows);
     setLoadingList(false);
   };
 
@@ -164,6 +174,20 @@ function AdminPage() {
                         <div className="text-xs text-muted-foreground">
                           {c.company || "—"}
                         </div>
+                        {c.email && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(c.email!);
+                              toast.success("E-mail copiado");
+                            }}
+                            className="mt-0.5 inline-flex items-center gap-1 text-xs text-lilac hover:underline"
+                            title="Copiar e-mail"
+                          >
+                            <Copy className="h-3 w-3" />
+                            {c.email}
+                          </button>
+                        )}
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button
